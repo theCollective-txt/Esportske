@@ -24,8 +24,8 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
     <div className="fixed top-0 left-0 right-0 z-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Main floating nav bar */}
-        <div className="bg-card/80 backdrop-blur-xl border border-border rounded-2xl px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="bg-card/95 backdrop-blur-md border border-border rounded-2xl px-6 py-4 relative z-50">
+          <div className="flex items-center justify-between relative z-50">
             {/* Logo and brand */}
             <button 
               onClick={() => handleNavigate('home')}
@@ -42,21 +42,21 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               <Button 
                 variant="ghost" 
                 size="sm" 
-                className="gap-2"
+                className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10"
                 onClick={() => handleNavigate('tournaments')}
               >
                 <Calendar className="w-4 h-4" />
                 Tournaments
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
                 <Gamepad2 className="w-4 h-4" />
                 Scrims & Practice
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
                 <MapPin className="w-4 h-4" />
                 Gaming Lounges
               </Button>
-              <Button variant="ghost" size="sm" className="gap-2">
+              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
                 <Users className="w-4 h-4" />
                 Community
               </Button>
@@ -101,7 +101,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                   <Button 
                     variant="outline"
                     size="sm"
-                    className="rounded-full px-4"
+                    className="rounded-full px-4 text-foreground hover:text-foreground"
                     onClick={() => onOpenAuth('signin')}
                   >
                     Sign In
@@ -109,7 +109,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
 
                   <Button 
                     size="sm"
-                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-5"
+                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-5 text-white"
                     onClick={() => onOpenAuth('signup')}
                   >
                     Join Now
