@@ -65,13 +65,6 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
             {/* Right side actions - Desktop */}
             <div className="hidden lg:flex items-center gap-2 xl:gap-3">
               {/* Search bar */}
-              <div className="hidden xl:flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2 w-[180px]">
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                <Input 
-                  placeholder="Search tournaments..."
-                  className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground text-sm"
-                />
-              </div>
 
               {user ? (
                 <>

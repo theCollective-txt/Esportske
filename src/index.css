@@ -889,10 +889,6 @@
     width: calc(var(--spacing) * 72);
   }
 
-  .w-\[180px\] {
-    width: 180px;
-  }
-
   .w-fit {
     width: fit-content;
   }
@@ -941,7 +937,7 @@
     flex: 1;
   }
 
-  .flex-shrink-0, .shrink-0 {
+  .shrink-0 {
     flex-shrink: 0;
   }
 
