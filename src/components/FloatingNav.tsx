@@ -1,4 +1,5 @@
-import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import logoImage from 'figma:asset/d71379c4510e7389463f3b7223ce4bebb78021ce.png';
@@ -12,6 +13,13 @@ interface FloatingNavProps {
 }
 
 export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignOut }: FloatingNavProps) {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleNavigate = (page: string) => {
+    onNavigate(page);
+    setMobileMenuOpen(false);
+  };
+
   return (
     <div className="fixed top-0 left-0 right-0 z-50 p-4">
       <div className="max-w-7xl mx-auto">
@@ -20,26 +28,22 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
           <div className="flex items-center justify-between">
             {/* Logo and brand */}
             <button 
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+              onClick={() => handleNavigate('home')}
+              className="hover:opacity-80 transition-opacity"
             >
-              <div className="relative">
-                <img src={logoImage} alt="ESPORTS-KE" className="h-10 w-10" />
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse"></div>
-              </div>
-              <div>
-                <h2 className="text-xl font-black gradient-text">ESPORTS-KE</h2>
-                <p className="text-xs text-muted-foreground">Gaming Events</p>
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
+                <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
               </div>
             </button>
 
-            {/* Center navigation */}
+            {/* Center navigation - Desktop */}
             <nav className="hidden lg:flex items-center gap-2">
               <Button 
                 variant="ghost" 
                 size="sm" 
                 className="gap-2"
-                onClick={() => onNavigate('tournaments')}
+                onClick={() => handleNavigate('tournaments')}
               >
                 <Calendar className="w-4 h-4" />
                 Tournaments
@@ -58,36 +62,35 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               </Button>
             </nav>
 
-            {/* Right side actions */}
-            <div className="flex items-center gap-3">
+            {/* Right side actions - Desktop */}
+            <div className="hidden lg:flex items-center gap-2 xl:gap-3">
               {/* Search bar */}
-              <div className="hidden md:flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2 min-w-[200px]">
-                <Search className="w-4 h-4 text-muted-foreground" />
+              <div className="hidden xl:flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2 w-[180px]">
+                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                 <Input 
-                  placeholder="Search tournaments, games..."
-                  className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground"
+                  placeholder="Search tournaments..."
+                  className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground text-sm"
                 />
               </div>
 
               {user ? (
                 <>
-                  {/* User menu */}
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="rounded-full"
-                    onClick={() => onNavigate('profile')}
+                    className="rounded-full hidden xl:flex"
+                    onClick={() => handleNavigate('profile')}
                     title="My Tournaments"
                   >
                     <Trophy className="w-4 h-4" />
                   </Button>
                   
                   <button 
-                    onClick={() => onNavigate('profile')}
+                    onClick={() => handleNavigate('profile')}
                     className="flex items-center gap-2 bg-muted/50 rounded-full px-3 py-2 hover:bg-muted/70 transition-colors"
                   >
                     <UserCircle className="w-4 h-4 text-primary" />
-                    <span className="text-sm font-medium">{user.email?.split('@')[0]}</span>
+                    <span className="text-sm font-medium whitespace-nowrap">{user.email?.split('@')[0]}</span>
                   </button>
 
                   <Button 
@@ -102,12 +105,9 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                 </>
               ) : (
                 <>
-                  <Button variant="ghost" size="icon" className="rounded-full">
-                    <Trophy className="w-4 h-4" />
-                  </Button>
-                  
                   <Button 
                     variant="outline"
+                    size="sm"
                     className="rounded-full px-4"
                     onClick={() => onOpenAuth('signin')}
                   >
@@ -115,7 +115,8 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                   </Button>
 
                   <Button 
-                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-6"
+                    size="sm"
+                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-5"
                     onClick={() => onOpenAuth('signup')}
                   >
                     Join Now
@@ -123,7 +124,114 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                 </>
               )}
             </div>
+
+            {/* Mobile menu button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden rounded-full"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </Button>
           </div>
+
+          {/* Mobile Menu Dropdown */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden mt-4 pt-4 border-t border-border space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              {/* Mobile Search */}
+              <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
+                <Search className="w-4 h-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search tournaments..."
+                  className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground"
+                />
+              </div>
+
+              {/* Mobile Navigation */}
+              <div className="space-y-1">
+                <button
+                  onClick={() => handleNavigate('tournaments')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <Calendar className="w-5 h-5 text-primary" />
+                  <span className="font-black">Tournaments</span>
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <Gamepad2 className="w-5 h-5 text-primary" />
+                  <span className="font-black">Scrims & Practice</span>
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <MapPin className="w-5 h-5 text-primary" />
+                  <span className="font-black">Gaming Lounges</span>
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                >
+                  <Users className="w-5 h-5 text-primary" />
+                  <span className="font-black">Community</span>
+                </button>
+              </div>
+
+              {/* Mobile User Actions */}
+              <div className="pt-3 border-t border-border space-y-2">
+                {user ? (
+                  <>
+                    <button 
+                      onClick={() => handleNavigate('profile')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 hover:bg-muted/70 transition-colors"
+                    >
+                      <UserCircle className="w-5 h-5 text-primary" />
+                      <div className="flex-1 text-left">
+                        <p className="font-black">{user.email?.split('@')[0]}</p>
+                        <p className="text-xs text-muted-foreground">View Profile</p>
+                      </div>
+                      <Trophy className="w-5 h-5 text-muted-foreground" />
+                    </button>
+                    
+                    <Button
+                      variant="outline"
+                      className="w-full gap-2 rounded-xl"
+                      onClick={() => {
+                        onSignOut();
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Sign Out
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button 
+                      variant="outline"
+                      className="w-full rounded-xl"
+                      onClick={() => {
+                        onOpenAuth('signin');
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      Sign In
+                    </Button>
+
+                    <Button 
+                      className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-xl"
+                      onClick={() => {
+                        onOpenAuth('signup');
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      Join Now
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
