@@ -10,6 +10,21 @@ const app = new Hono();
 app.use('*', cors());
 app.use('*', logger(console.log));
 
+// JWT validation middleware for public routes
+app.use('*', async (c, next) => {
+  // Allow requests with valid Authorization header (either user token or anon key)
+  const authHeader = c.req.header('Authorization');
+  
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // Valid Authorization header present, proceed
+    return await next();
+  }
+  
+  // For routes that don't require auth, proceed without token
+  // (this allows the public routes to work)
+  return await next();
+});
+
 // Create Supabase client helper
 const getSupabaseClient = () => {
   return createClient(
@@ -32,7 +47,20 @@ const checkAdmin = async (accessToken: string) => {
   }
 
   const profile = await kv.get(`user:${user.id}`);
-  return { isAdmin: profile?.role === 'admin', userId: user.id, profile };
+  
+  // Check admin status from both KV store and Supabase user_metadata
+  const isAdminFromMetadata = user.user_metadata?.is_admin === true;
+  const isAdminFromKV = profile?.role === 'admin';
+  
+  // If user has is_admin in metadata but not in KV, update KV store
+  if (isAdminFromMetadata && !isAdminFromKV && profile) {
+    profile.role = 'admin';
+    await kv.set(`user:${user.id}`, profile);
+  }
+  
+  const isAdmin = isAdminFromKV || isAdminFromMetadata;
+  
+  return { isAdmin, userId: user.id, profile };
 };
 
 // Sign up endpoint
@@ -94,29 +122,51 @@ app.post('/make-server-8711c492/signup', async (c) => {
 app.get('/make-server-8711c492/profile', async (c) => {
   try {
     const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    console.log('Profile endpoint - Access token present:', !!accessToken);
     
     if (!accessToken) {
+      console.error('Profile endpoint - No access token provided');
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
     const supabase = getSupabaseClient();
+    console.log('Profile endpoint - Getting user from Supabase auth...');
     const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
     if (error || !user) {
-      console.error('Error getting user profile:', error);
+      console.error('Profile endpoint - Auth error:', error);
       return c.json({ error: 'Unauthorized - invalid access token' }, 401);
     }
 
+    console.log('Profile endpoint - User authenticated:', user.id);
+    
     // Get user profile from KV store
+    console.log('Profile endpoint - Fetching profile from KV store...');
     const profile = await kv.get(`user:${user.id}`);
+    console.log('Profile endpoint - KV profile found:', !!profile);
 
     if (!profile) {
+      console.error('Profile endpoint - Profile not found in KV store for user:', user.id);
       return c.json({ error: 'Profile not found' }, 404);
     }
 
+    // Check if user is admin from either KV store role or Supabase user_metadata
+    const isAdminFromMetadata = user.user_metadata?.is_admin === true;
+    const isAdminFromKV = profile.role === 'admin';
+    console.log('Profile endpoint - Admin check - From metadata:', isAdminFromMetadata, 'From KV:', isAdminFromKV);
+    
+    // If user has is_admin in metadata but not in KV, update KV store
+    if (isAdminFromMetadata && !isAdminFromKV) {
+      console.log('Profile endpoint - Syncing admin role from metadata to KV store');
+      profile.role = 'admin';
+      await kv.set(`user:${user.id}`, profile);
+    }
+
+    console.log('Profile endpoint - Returning profile with role:', profile.role);
     return c.json({ profile });
   } catch (error: any) {
-    console.error('Error fetching profile:', error);
+    console.error('Profile endpoint - Unexpected error:', error);
+    console.error('Profile endpoint - Error stack:', error.stack);
     return c.json({ error: error.message || 'Failed to fetch profile' }, 500);
   }
 });
@@ -244,6 +294,121 @@ app.get('/make-server-8711c492/tournament/:tournamentId/participants', async (c)
 });
 
 // ============= ADMIN ENDPOINTS =============
+
+// Get all tournaments (public)
+app.get('/make-server-8711c492/tournaments', async (c) => {
+  try {
+    console.log('Fetching tournaments from KV store...');
+    const tournaments = await kv.getByPrefix('tournament:data:');
+    console.log('Tournaments fetched:', tournaments?.length || 0, 'items');
+    
+    // Sort by date (newest first)
+    const sortedTournaments = (tournaments || []).sort((a: any, b: any) => {
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    });
+    
+    return c.json({ tournaments: sortedTournaments });
+  } catch (error: any) {
+    console.error('Error fetching tournaments from KV store:', error);
+    console.error('Error details:', error.message, error.stack);
+    return c.json({ error: error.message || 'Failed to fetch tournaments' }, 500);
+  }
+});
+
+// Create tournament (admin only)
+app.post('/make-server-8711c492/admin/tournaments', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const tournamentData = await c.req.json();
+    
+    // Generate a unique ID
+    const tournamentId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const tournament = {
+      id: tournamentId,
+      ...tournamentData,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(`tournament:data:${tournamentId}`, tournament);
+
+    return c.json({ success: true, tournament });
+  } catch (error: any) {
+    console.error('Error creating tournament:', error);
+    return c.json({ error: error.message || 'Failed to create tournament' }, 500);
+  }
+});
+
+// Update tournament (admin only)
+app.put('/make-server-8711c492/admin/tournaments/:tournamentId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const tournamentId = c.req.param('tournamentId');
+    const updates = await c.req.json();
+
+    const existingTournament = await kv.get(`tournament:data:${tournamentId}`);
+    
+    if (!existingTournament) {
+      return c.json({ error: 'Tournament not found' }, 404);
+    }
+
+    const updatedTournament = {
+      ...existingTournament,
+      ...updates,
+      id: tournamentId, // Ensure ID doesn't change
+      createdAt: existingTournament.createdAt, // Preserve creation date
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(`tournament:data:${tournamentId}`, updatedTournament);
+
+    return c.json({ success: true, tournament: updatedTournament });
+  } catch (error: any) {
+    console.error('Error updating tournament:', error);
+    return c.json({ error: error.message || 'Failed to update tournament' }, 500);
+  }
+});
+
+// Delete tournament (admin only)
+app.delete('/make-server-8711c492/admin/tournaments/:tournamentId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const tournamentId = c.req.param('tournamentId');
+
+    // Delete tournament data
+    await kv.del(`tournament:data:${tournamentId}`);
+    
+    // Delete all participant registrations for this tournament
+    const participants = await kv.getByPrefix(`tournament:${tournamentId}:participant:`);
+    for (const participant of participants || []) {
+      await kv.del(`tournament:${tournamentId}:participant:${participant.userId}`);
+    }
+
+    return c.json({ success: true, message: 'Tournament deleted' });
+  } catch (error: any) {
+    console.error('Error deleting tournament:', error);
+    return c.json({ error: error.message || 'Failed to delete tournament' }, 500);
+  }
+});
 
 // Get all users (admin only)
 app.get('/make-server-8711c492/admin/users', async (c) => {

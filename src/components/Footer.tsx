@@ -1,7 +1,7 @@
-import { Facebook, Twitter, Instagram, Youtube, Mail, Phone } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Youtube, Mail } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import logoImage from 'figma:asset/d71379c4510e7389463f3b7223ce4bebb78021ce.png';
+import logoImage from 'figma:asset/7066abf5535bce8ca18393d6d93fa8b7b995eb82.png';
 
 export function Footer() {
   return (
@@ -77,10 +77,6 @@ export function Footer() {
             <div className="flex items-center gap-1">
               <Mail className="w-4 h-4" />
               <span>contact@hitshuffle.com</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Phone className="w-4 h-4" />
-              <span>1-800-SHUFFLE</span>
             </div>
           </div>
         </div>

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import logoImage from 'figma:asset/d71379c4510e7389463f3b7223ce4bebb78021ce.png';
+import logoImage from 'figma:asset/7066abf5535bce8ca18393d6d93fa8b7b995eb82.png';
 
 interface FloatingNavProps {
   onNavigate: (page: string) => void;
@@ -32,8 +32,8 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               onClick={() => handleNavigate('home')}
               className="hover:opacity-80 transition-opacity"
             >
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden">
+                <img src={logoImage} alt="ESPORTS-KE" className="w-full h-full object-cover" />
               </div>
             </button>
 
@@ -48,6 +48,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               </button>
               <button 
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+                onClick={() => handleNavigate('scrims')}
               >
                 <Gamepad2 className="w-4 h-4" />
                 Scrims & Practice
@@ -60,6 +61,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               </button>
               <button 
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+                onClick={() => window.open('https://forms.gle/QeiA3NRT7ri7wYAH9', '_blank')}
               >
                 <Users className="w-4 h-4" />
                 Community
@@ -76,23 +78,13 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="rounded-full hidden xl:flex"
+                      className="rounded-full hidden lg:flex"
                       onClick={() => handleNavigate('admin')}
                       title="Admin Panel"
                     >
                       <Shield className="w-4 h-4 text-primary" />
                     </Button>
                   )}
-                  
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="rounded-full hidden xl:flex"
-                    onClick={() => handleNavigate('profile')}
-                    title="My Tournaments"
-                  >
-                    <Trophy className="w-4 h-4" />
-                  </Button>
                   
                   <button 
                     onClick={() => handleNavigate('profile')}
@@ -168,6 +160,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                  onClick={() => handleNavigate('scrims')}
                 >
                   <Gamepad2 className="w-5 h-5 text-primary" />
                   <span className="font-black">Scrims & Practice</span>
@@ -180,6 +173,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                  onClick={() => window.open('https://forms.gle/QeiA3NRT7ri7wYAH9', '_blank')}
                 >
                   <Users className="w-5 h-5 text-primary" />
                   <span className="font-black">Community</span>

@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { FloatingNav } from './components/FloatingNav';
 import { HomePage } from './pages/HomePage';
 import { TournamentsPage } from './pages/TournamentsPage';
+import { ScrimsPage } from './pages/ScrimsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPanel } from './components/AdminPanel';
 import { AuthModal } from './components/AuthModal';
 import { getSupabaseClient } from './utils/supabase/client';
 import { projectId, publicAnonKey } from './utils/supabase/info';
 import { Toaster } from './components/ui/sonner';
+import { createClient } from '@supabase/supabase-js';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
@@ -34,10 +36,20 @@ export default function App() {
     };
 
     checkSession();
-  }, []);
+    
+    // Periodically refresh user profile to pick up role changes
+    const profileRefreshInterval = setInterval(() => {
+      if (accessToken) {
+        fetchUserProfile(accessToken);
+      }
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => clearInterval(profileRefreshInterval);
+  }, [accessToken]);
 
   const fetchUserProfile = async (token: string) => {
     try {
+      console.log('Fetching user profile with token:', token ? 'Token present' : 'No token');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/profile`,
         {
@@ -47,12 +59,69 @@ export default function App() {
         }
       );
 
+      console.log('Profile response status:', response.status);
+      
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON response received:', textResponse);
+        
+        if (response.status === 401) {
+          // Token expired or invalid - try to refresh session
+          console.log('Token invalid or expired, attempting to refresh session...');
+          const supabase = createClient(
+            `https://${projectId}.supabase.co`,
+            publicAnonKey
+          );
+          const { data: { session }, error } = await supabase.auth.refreshSession();
+          
+          if (session?.access_token) {
+            console.log('Session refreshed successfully');
+            setAccessToken(session.access_token);
+            // Retry fetching profile with new token
+            await fetchUserProfile(session.access_token);
+          } else {
+            console.log('Session refresh failed or no active session:', error);
+            // Clear invalid session
+            setAccessToken(null);
+            setUserProfile(null);
+          }
+        }
+        return;
+      }
+      
       const data = await response.json();
+      console.log('Profile response data:', data);
+      
       if (response.ok) {
         setUserProfile(data.profile);
+      } else if (response.status === 401) {
+        // Token expired or invalid - try to refresh session
+        console.log('Token invalid or expired, attempting to refresh session...');
+        const supabase = createClient(
+          `https://${projectId}.supabase.co`,
+          publicAnonKey
+        );
+        const { data: { session }, error } = await supabase.auth.refreshSession();
+        
+        if (session?.access_token) {
+          console.log('Session refreshed successfully');
+          setAccessToken(session.access_token);
+          // Retry fetching profile with new token
+          await fetchUserProfile(session.access_token);
+        } else {
+          console.log('Session refresh failed or no active session:', error);
+          // Clear invalid session
+          setAccessToken(null);
+          setUserProfile(null);
+        }
+      } else {
+        console.error('Failed to fetch profile - HTTP', response.status, ':', data.error);
       }
     } catch (err) {
       console.error('Error fetching user profile:', err);
+      console.error('Error details:', err instanceof Error ? err.message : 'Unknown error');
     }
   };
 
@@ -95,6 +164,13 @@ export default function App() {
       {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
       {currentPage === 'tournaments' && (
         <TournamentsPage 
+          user={user} 
+          accessToken={accessToken}
+          onOpenAuth={handleOpenAuth}
+        />
+      )}
+      {currentPage === 'scrims' && (
+        <ScrimsPage 
           user={user} 
           accessToken={accessToken}
           onOpenAuth={handleOpenAuth}

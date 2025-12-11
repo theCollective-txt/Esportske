@@ -1,7 +1,7 @@
-import { Menu, Search, User } from 'lucide-react';
+import { Search, Bell, User } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import logoImage from 'figma:asset/d71379c4510e7389463f3b7223ce4bebb78021ce.png';
+import logoImage from 'figma:asset/7066abf5535bce8ca18393d6d93fa8b7b995eb82.png';
 
 export function Header() {
   return (
@@ -39,7 +39,7 @@ export function Header() {
             </div>
             
             <Button variant="ghost" size="icon" className="md:hidden">
-              <Menu className="w-4 h-4" />
+              <Bell className="w-4 h-4" />
             </Button>
             
             <Button variant="ghost" size="icon">

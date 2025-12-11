@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Calendar, Users, MapPin, Clock, Gamepad2, Trophy, Play, Filter, Search, SlidersHorizontal } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -25,10 +25,78 @@ export function TournamentsPage({ user, accessToken, onOpenAuth }: TournamentsPa
   const [selectedGame, setSelectedGame] = useState('all');
   const [selectedDate, setSelectedDate] = useState('all');
   const [selectedLocation, setSelectedLocation] = useState('all');
-  const [registering, setRegistering] = useState<number | null>(null);
-  const [registeredTournaments, setRegisteredTournaments] = useState<number[]>([]);
+  const [registering, setRegistering] = useState<string | null>(null);
+  const [registeredTournaments, setRegisteredTournaments] = useState<string[]>([]);
+  const [tournaments, setTournaments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const handleRegister = async (tournamentId: number, tournamentTitle: string) => {
+  // Fetch tournaments from backend
+  useEffect(() => {
+    fetchTournaments();
+    if (user && accessToken) {
+      fetchRegisteredTournaments();
+    }
+  }, [user, accessToken]);
+
+  const fetchTournaments = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/tournaments`,
+        {
+          headers: {
+            'Authorization': `Bearer ${publicAnonKey}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch tournaments`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.tournaments || !Array.isArray(data.tournaments)) {
+        console.warn('No tournaments array in response:', data);
+        setTournaments([]);
+        return;
+      }
+
+      // Filter only tournaments (not scrims)
+      const tournamentsOnly = data.tournaments.filter((t: any) => t.type !== 'scrim');
+      setTournaments(tournamentsOnly);
+    } catch (err: any) {
+      console.error('Error fetching tournaments:', err);
+      setError(err.message || 'Failed to fetch tournaments');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRegisteredTournaments = async () => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/my-tournaments`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok && data.tournaments) {
+        setRegisteredTournaments(data.tournaments.map((t: any) => t.tournamentId));
+      }
+    } catch (err: any) {
+      console.error('Error fetching registered tournaments:', err);
+    }
+  };
+
+  const handleRegister = async (tournamentId: string, tournamentTitle: string) => {
     if (!user || !accessToken) {
       toast.error('Please sign in to register for tournaments');
       onOpenAuth('signup');
@@ -68,177 +136,6 @@ export function TournamentsPage({ user, accessToken, onOpenAuth }: TournamentsPa
       setRegistering(null);
     }
   };
-
-  const tournaments = [
-    {
-      id: 1,
-      title: 'FIFA 24 Championship',
-      game: 'FIFA 24',
-      type: 'Tournament',
-      format: '1v1 Bracket',
-      host: 'Nairobi FC Gaming',
-      date: 'Tonight',
-      fullDate: 'Dec 10, 2025',
-      time: '8:00 PM EAT',
-      duration: '4 hours',
-      attendees: 48,
-      maxAttendees: 64,
-      location: 'Westlands Gaming Hub',
-      area: 'Westlands',
-      image: 'https://images.unsplash.com/photo-1759701546851-1d903ac1a2e2?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlc3BvcnRzJTIwZ2FtaW5nJTIwdG91cm5hbWVudHxlbnwxfHx8fDE3NjUyNjQ3MjN8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 50,000',
-      skillLevel: 'All Levels',
-      tags: ['FIFA 24', 'Sports', '1v1']
-    },
-    {
-      id: 2,
-      title: 'Valorant 5v5 League',
-      game: 'Valorant',
-      type: 'Competitive Match',
-      format: '5v5 Teams',
-      host: 'Kenya Esports League',
-      date: 'Tomorrow',
-      fullDate: 'Dec 11, 2025',
-      time: '7:30 PM EAT',
-      duration: '3 hours',
-      attendees: 56,
-      maxAttendees: 80,
-      location: 'eSports Arena Karen',
-      area: 'Karen',
-      image: 'https://images.unsplash.com/photo-1763258986479-0962883e1747?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxjb21wZXRpdGl2ZSUyMGdhbWluZyUyMHNldHVwfGVufDF8fHx8MTc2NTI2OTg3N3ww&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 100,000',
-      skillLevel: 'Advanced',
-      tags: ['Valorant', 'FPS', 'Team']
-    },
-    {
-      id: 3,
-      title: 'COD: Warzone Battle Royale',
-      game: 'Call of Duty',
-      type: 'Tournament',
-      format: 'Squad BR',
-      host: 'Call of Duty Kenya',
-      date: 'Saturday',
-      fullDate: 'Dec 14, 2025',
-      time: '9:00 PM EAT',
-      duration: '5 hours',
-      attendees: 92,
-      maxAttendees: 100,
-      location: 'Cyber Arena Kileleshwa',
-      area: 'Kileleshwa',
-      image: 'https://images.unsplash.com/photo-1592840496694-26d035b52b48?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMGdhbWUlMjBjb250cm9sbGVyfGVufDF8fHx8MTc2NTM1NTc1OXww&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 75,000',
-      skillLevel: 'Intermediate',
-      tags: ['COD', 'Battle Royale', 'Squads']
-    },
-    {
-      id: 4,
-      title: 'CS:GO Scrims & Practice',
-      game: 'CS:GO',
-      type: 'Practice Session',
-      format: '5v5 Scrims',
-      host: 'Counter-Strike Nairobi',
-      date: 'Sunday',
-      fullDate: 'Dec 15, 2025',
-      time: '4:00 PM EAT',
-      duration: '3 hours',
-      attendees: 34,
-      maxAttendees: 50,
-      location: 'Game Lounge Westlands',
-      area: 'Westlands',
-      image: 'https://images.unsplash.com/photo-1632603093711-0d93a0bcc6cc?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjByb29tJTIwbGlnaHRzfGVufDF8fHx8MTc2NTM1ODcxMnww&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'Free',
-      skillLevel: 'All Levels',
-      tags: ['CS:GO', 'FPS', 'Practice']
-    },
-    {
-      id: 5,
-      title: 'League of Legends 5v5',
-      game: 'League of Legends',
-      type: 'Tournament',
-      format: '5v5 Teams',
-      host: 'MOBA Kenya',
-      date: 'Dec 12',
-      fullDate: 'Dec 12, 2025',
-      time: '6:00 PM EAT',
-      duration: '4 hours',
-      attendees: 40,
-      maxAttendees: 50,
-      location: 'Tech Gaming Hub CBD',
-      area: 'CBD',
-      image: 'https://images.unsplash.com/photo-1758410473607-e78a23fd6e57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlc3BvcnRzJTIwY29tcGV0aXRpb24lMjBzY3JlZW58ZW58MXx8fHwxNzY1MzU4NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 80,000',
-      skillLevel: 'Advanced',
-      tags: ['LoL', 'MOBA', 'Team']
-    },
-    {
-      id: 6,
-      title: 'Rocket League 3v3 Cup',
-      game: 'Rocket League',
-      type: 'Tournament',
-      format: '3v3 Teams',
-      host: 'Rocket League KE',
-      date: 'Dec 13',
-      fullDate: 'Dec 13, 2025',
-      time: '7:00 PM EAT',
-      duration: '3 hours',
-      attendees: 28,
-      maxAttendees: 36,
-      location: 'Gaming Lounge Karen',
-      area: 'Karen',
-      image: 'https://images.unsplash.com/photo-1758524944460-98b67346a1e4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjB0b3VybmFtZW50JTIwcGxheWVyc3xlbnwxfHx8fDE3NjUzNTg3NDl8MA&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 40,000',
-      skillLevel: 'Intermediate',
-      tags: ['Rocket League', 'Sports', 'Team']
-    },
-    {
-      id: 7,
-      title: 'Tekken 8 Fighting Tournament',
-      game: 'Tekken 8',
-      type: 'Tournament',
-      format: '1v1 Bracket',
-      host: 'Fighting Game Community KE',
-      date: 'Dec 16',
-      fullDate: 'Dec 16, 2025',
-      time: '5:00 PM EAT',
-      duration: '4 hours',
-      attendees: 32,
-      maxAttendees: 32,
-      location: 'Arcade Lounge Westlands',
-      area: 'Westlands',
-      image: 'https://images.unsplash.com/photo-1733945761558-e24d0620e1c4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjBoZWFkc2V0JTIwc2V0dXB8ZW58MXx8fHwxNzY1MzU4NzUwfDA&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 60,000',
-      skillLevel: 'All Levels',
-      tags: ['Tekken 8', 'Fighting', '1v1']
-    },
-    {
-      id: 8,
-      title: 'Apex Legends Squad Finals',
-      game: 'Apex Legends',
-      type: 'Tournament',
-      format: '3v3 BR',
-      host: 'Apex Kenya',
-      date: 'Dec 17',
-      fullDate: 'Dec 17, 2025',
-      time: '8:00 PM EAT',
-      duration: '4 hours',
-      attendees: 54,
-      maxAttendees: 60,
-      location: 'eSports Hub CBD',
-      area: 'CBD',
-      image: 'https://images.unsplash.com/photo-1677694690511-2e0646619c91?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMGdhbWUlMjBjb25zb2xlfGVufDF8fHx8MTc2NTM1ODc1MHww&ixlib=rb-4.1.0&q=80&w=1080',
-      isLive: false,
-      prizePool: 'KES 90,000',
-      skillLevel: 'Advanced',
-      tags: ['Apex', 'Battle Royale', 'Squads']
-    }
-  ];
 
   // Filter tournaments based on selections
   const filteredTournaments = tournaments.filter(tournament => {
@@ -345,7 +242,7 @@ export function TournamentsPage({ user, accessToken, onOpenAuth }: TournamentsPa
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <h2 className="text-2xl font-black">
-              {filteredTournaments.length} Tournaments Found
+              {loading ? 'Loading...' : `${filteredTournaments.length} Tournaments Found`}
             </h2>
             <Button variant="outline" size="sm" className="gap-2">
               <SlidersHorizontal className="w-4 h-4" />
@@ -353,117 +250,169 @@ export function TournamentsPage({ user, accessToken, onOpenAuth }: TournamentsPa
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredTournaments.map((tournament, index) => (
-              <Card 
-                key={tournament.id}
-                className="group relative overflow-hidden hover:scale-105 transition-all duration-500"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <CardContent className="p-0">
-                  {/* Tournament Image */}
-                  <div className="relative h-48 overflow-hidden">
-                    <ImageWithFallback
-                      src={tournament.image}
-                      alt={tournament.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    
-                    {/* Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
-                    
-                    {/* Live indicator */}
-                    {tournament.isLive && (
-                      <div className="absolute top-3 right-3 flex items-center gap-2 bg-primary/90 backdrop-blur-sm rounded-full px-3 py-1 glow">
-                        <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-                        <span className="text-xs text-white font-medium">LIVE NOW</span>
-                      </div>
-                    )}
-                    
-                    {/* Event type badge */}
-                    <div className="absolute top-3 left-3">
-                      <Badge variant="secondary" className="bg-black/50 text-white border-0">
-                        {tournament.type}
-                      </Badge>
-                    </div>
-                    
-                    {/* Bottom info overlay */}
-                    <div className="absolute bottom-3 left-3 right-3">
-                      <div className="flex items-center justify-between text-white">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4" />
-                          <span className="text-sm font-medium">{tournament.date}</span>
+          {/* Loading State */}
+          {loading && (
+            <div className="text-center py-16">
+              <div className="inline-block w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+              <p className="text-muted-foreground">Loading tournaments...</p>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && !loading && (
+            <div className="text-center py-16">
+              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-6 max-w-md mx-auto">
+                <p className="text-red-500 mb-4">{error}</p>
+                <Button onClick={fetchTournaments} variant="outline">
+                  Try Again
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {!loading && !error && filteredTournaments.length === 0 && (
+            <div className="text-center py-16">
+              <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-black mb-2">No Tournaments Found</h3>
+              <p className="text-muted-foreground mb-6">
+                {tournaments.length === 0 
+                  ? 'No tournaments have been created yet. Check back soon!'
+                  : 'No tournaments match your filters. Try adjusting your search criteria.'}
+              </p>
+              {tournaments.length > 0 && (
+                <Button 
+                  onClick={() => {
+                    setSelectedGame('all');
+                    setSelectedDate('all');
+                    setSelectedLocation('all');
+                  }}
+                  variant="outline"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          )}
+
+          {/* Tournaments Grid */}
+          {!loading && !error && filteredTournaments.length > 0 && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredTournaments.map((tournament, index) => (
+                  <Card 
+                    key={tournament.id}
+                    className="group relative overflow-hidden hover:scale-105 transition-all duration-500"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <CardContent className="p-0">
+                      {/* Tournament Image */}
+                      <div className="relative h-48 overflow-hidden">
+                        <ImageWithFallback
+                          src={tournament.image}
+                          alt={tournament.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                        
+                        {/* Overlay */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                        
+                        {/* Live indicator */}
+                        {tournament.isLive && (
+                          <div className="absolute top-3 right-3 flex items-center gap-2 bg-primary/90 backdrop-blur-sm rounded-full px-3 py-1 glow">
+                            <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+                            <span className="text-xs text-white font-medium">LIVE NOW</span>
+                          </div>
+                        )}
+                        
+                        {/* Event type badge */}
+                        <div className="absolute top-3 left-3">
+                          <Badge variant="secondary" className="bg-black/50 text-white border-0">
+                            {tournament.type || 'Tournament'}
+                          </Badge>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="w-4 h-4" />
-                          <span className="text-sm">{tournament.attendees}/{tournament.maxAttendees}</span>
+                        
+                        {/* Bottom info overlay */}
+                        <div className="absolute bottom-3 left-3 right-3">
+                          <div className="flex items-center justify-between text-white">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4" />
+                              <span className="text-sm font-medium">{tournament.date || 'TBA'}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              <span className="text-sm">{tournament.attendees || 0}/{tournament.maxAttendees || 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Play button overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button size="icon" className="rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 h-16 w-16">
+                            {tournament.isLive ? <Trophy className="w-8 h-8 text-white" /> : <Play className="w-8 h-8 text-white" />}
+                          </Button>
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* Play button overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button size="icon" className="rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 h-16 w-16">
-                        {tournament.isLive ? <Trophy className="w-8 h-8 text-white" /> : <Play className="w-8 h-8 text-white" />}
-                      </Button>
-                    </div>
-                  </div>
 
-                  {/* Tournament Info */}
-                  <div className="p-6 space-y-4">
-                    <div>
-                      <h3 className="font-black text-lg mb-1">{tournament.title}</h3>
-                      <p className="text-sm text-muted-foreground">Hosted by {tournament.host}</p>
-                    </div>
+                      {/* Tournament Info */}
+                      <div className="p-6 space-y-4">
+                        <div>
+                          <h3 className="font-black text-lg mb-1">{tournament.title}</h3>
+                          <p className="text-sm text-muted-foreground">Hosted by {tournament.host || 'ESPORTS-KE'}</p>
+                        </div>
 
-                    {/* Tournament Details */}
-                    <div className="space-y-2 text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>{tournament.time} • {tournament.duration}</span>
+                        {/* Tournament Details */}
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Clock className="w-4 h-4" />
+                            <span>{tournament.time || 'TBA'} • {tournament.duration || 'TBA'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span className="truncate">{tournament.location || 'Location TBA'}</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Trophy className="w-4 h-4" />
+                            <span>{tournament.prizePool || 'Prize TBA'}</span>
+                          </div>
+                        </div>
+
+                        {/* Tags */}
+                        <div className="flex flex-wrap gap-1">
+                          {(tournament.tags || []).map((tag: string) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {tournament.skillLevel && (
+                            <Badge variant="secondary" className="text-xs">
+                              {tournament.skillLevel}
+                            </Badge>
+                          )}
+                        </div>
+
+                        {/* Action Button */}
+                        <Button
+                          className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                          onClick={() => handleRegister(tournament.id, tournament.title)}
+                          disabled={registering === tournament.id || registeredTournaments.includes(tournament.id)}
+                        >
+                          {registering === tournament.id ? 'Registering...' : tournament.isLive ? 'Watch Now' : registeredTournaments.includes(tournament.id) ? 'Registered' : 'Register Now'}
+                        </Button>
                       </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <MapPin className="w-4 h-4" />
-                        <span className="truncate">{tournament.location}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Trophy className="w-4 h-4" />
-                        <span>{tournament.prizePool}</span>
-                      </div>
-                    </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-                    {/* Tags */}
-                    <div className="flex flex-wrap gap-1">
-                      {tournament.tags.map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      <Badge variant="secondary" className="text-xs">
-                        {tournament.skillLevel}
-                      </Badge>
-                    </div>
-
-                    {/* Action Button */}
-                    <Button
-                      className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-                      onClick={() => handleRegister(tournament.id, tournament.title)}
-                      disabled={registering === tournament.id || registeredTournaments.includes(tournament.id)}
-                    >
-                      {registering === tournament.id ? 'Registering...' : tournament.isLive ? 'Watch Now' : registeredTournaments.includes(tournament.id) ? 'Registered' : 'Register Now'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Load More */}
-          <div className="text-center mt-12">
-            <Button size="lg" variant="outline" className="gradient-border px-8">
-              Load More Tournaments
-            </Button>
-          </div>
+              {/* Load More */}
+              <div className="text-center mt-12">
+                <Button size="lg" variant="outline" className="gradient-border px-8">
+                  Load More Tournaments
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       </section>
     </div>

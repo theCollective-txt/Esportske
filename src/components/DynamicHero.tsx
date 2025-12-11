@@ -1,12 +1,114 @@
+import { useState, useEffect } from 'react';
 import { Calendar, Users, Gamepad2, MapPin, Play, Trophy } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface DynamicHeroProps {
   onNavigate: (page: string) => void;
 }
 
 export function DynamicHero({ onNavigate }: DynamicHeroProps) {
+  const [upcomingTournaments, setUpcomingTournaments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchUpcomingTournaments();
+  }, []);
+
+  const fetchUpcomingTournaments = async () => {
+    setLoading(true);
+    try {
+      console.log('Fetching tournaments with projectId:', projectId);
+      console.log('Using publicAnonKey:', publicAnonKey ? 'Key exists' : 'Key is missing');
+      
+      const url = `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/tournaments`;
+      console.log('Request URL:', url);
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${publicAnonKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response body:', errorText);
+        
+        let errorData;
+        try {
+          errorData = JSON.parse(errorText);
+        } catch {
+          errorData = { error: errorText };
+        }
+        
+        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch tournaments`);
+      }
+
+      const data = await response.json();
+      console.log('Tournaments data received:', data);
+      
+      if (!data.tournaments || !Array.isArray(data.tournaments)) {
+        console.warn('No tournaments array in response:', data);
+        setUpcomingTournaments([]);
+        return;
+      }
+
+      // Filter tournaments within the next 7 days (excluding scrims)
+      const now = new Date();
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(now.getDate() + 7);
+
+      const filtered = data.tournaments.filter((tournament: any) => {
+        if (!tournament.startDate) return false;
+        if (tournament.type === 'scrim') return false; // Exclude scrims
+        const tournamentDate = new Date(tournament.startDate);
+        return tournamentDate >= now && tournamentDate <= oneWeekFromNow;
+      });
+
+      // Sort by date (closest first) and limit to 6
+      const sorted = filtered.sort((a: any, b: any) => {
+        const dateA = new Date(a.startDate).getTime();
+        const dateB = new Date(b.startDate).getTime();
+        return dateA - dateB;
+      }).slice(0, 6);
+
+      console.log('Filtered tournaments:', sorted.length);
+      setUpcomingTournaments(sorted);
+    } catch (err: any) {
+      console.error('Error fetching upcoming tournaments:', err);
+      setUpcomingTournaments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Card positioning and styling variants for up to 6 cards
+  const cardVariants = [
+    { position: 'lg:top-0 lg:right-0', rotate: 'lg:rotate-3', gradient: 'from-primary/10 to-secondary/10', border: 'border-primary/20', glow: 'glow' },
+    { position: 'lg:top-32 lg:left-0', rotate: 'lg:-rotate-6', gradient: 'from-accent/10 to-primary/10', border: 'border-accent/20', glow: 'glow-accent' },
+    { position: 'lg:bottom-20 lg:right-8', rotate: 'lg:rotate-6', gradient: 'from-secondary/10 to-accent/10', border: 'border-secondary/20', glow: 'glow-secondary' },
+    { position: 'lg:top-64 lg:right-16', rotate: 'lg:-rotate-3', gradient: 'from-primary/10 to-accent/10', border: 'border-primary/20', glow: 'glow' },
+    { position: 'lg:bottom-32 lg:left-8', rotate: 'lg:rotate-4', gradient: 'from-secondary/10 to-primary/10', border: 'border-secondary/20', glow: 'glow-secondary' },
+    { position: 'lg:top-16 lg:left-16', rotate: 'lg:-rotate-2', gradient: 'from-accent/10 to-secondary/10', border: 'border-accent/20', glow: 'glow-accent' },
+  ];
+
+  const formatTournamentDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = date.getTime() - now.getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    if (days === 0) return 'TODAY';
+    if (days === 1) return 'TOMORROW';
+    if (days < 7) return `IN ${days} DAYS`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-24">
       {/* Animated background elements */}
@@ -23,12 +125,12 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-primary text-sm font-medium">
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                KENYA'S GAMING COMMUNITY
+                NAIROBI'S GAMING COMMUNITY
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               </div>
               
               <h1 className="text-6xl lg:text-8xl font-black leading-none">
-                KENYA
+                NAIROBI
                 <br />
                 <span className="text-primary">GAMERS</span>
                 <br />
@@ -38,10 +140,9 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
-                Join Kenya's only gamer community where you call the shots.
-                eports.ke is designed to hand ownership, governance, and community development over to the gamers themselves.
-                From JKUAT to KU, UON to TUM, Murima to Lakeside, discover tournaments, scrims, watch parties, and connect with fellow gamers 
-                across the country.
+                Join Nairobi's most competitive gaming community. From Westlands to Karen, 
+                discover tournaments, scrims, watch parties, and connect with fellow gamers 
+                across the city.
               </p>
             </div>
 
@@ -55,7 +156,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
                 Browse Tournaments
               </Button>
               <Button size="lg" variant="outline" className="gradient-border rounded-full px-8" asChild>
-                <a href="https://discord.gg/SCR5SpJM4T" target="_blank" rel="noopener noreferrer">
+                <a href="https://forms.gle/QeiA3NRT7ri7wYAH9" target="_blank" rel="noopener noreferrer">
                   <Gamepad2 className="w-5 h-5 mr-2" />
                   Join Community
                 </a>
@@ -81,71 +182,190 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
 
           {/* Floating event cards */}
           <div className="lg:col-span-5 relative">
-            <div className="relative h-auto lg:h-[600px]">
-              {/* Card 1 - Live Tournament */}
-              <Card className="mb-4 lg:mb-0 lg:absolute lg:top-0 lg:right-0 w-full sm:w-80 lg:w-72 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 glow lg:rotate-3 hover:rotate-0 transition-transform duration-500">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                    <span className="text-xs font-bold text-primary">LIVE NOW</span>
+            <div className="relative h-auto md:min-h-[500px] lg:h-[600px]">
+              {/* Loading State */}
+              {loading && (
+                <div className="flex items-center justify-center h-full min-h-[300px]">
+                  <div className="text-center">
+                    <div className="inline-block w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin mb-4"></div>
+                    <p className="text-muted-foreground">Loading tournaments...</p>
                   </div>
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center">
-                      <Trophy className="w-6 h-6 text-white" />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-white">FIFA 24 Cup</h4>
-                      <p className="text-sm text-muted-foreground">@nairobifc</p>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-white">
-                      <Users className="w-4 h-4 text-accent" />
-                      <span>32 players competing</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-white">
-                      <MapPin className="w-4 h-4 text-green-500" />
-                      <span>Westlands Gaming Hub</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              )}
 
-              {/* Card 2 - Upcoming Tournament */}
-              <Card className="mb-4 lg:mb-0 lg:absolute lg:top-32 lg:left-0 w-full sm:w-80 lg:w-64 bg-gradient-to-br from-accent/10 to-primary/10 border-accent/20 glow-accent lg:-rotate-6 hover:rotate-0 transition-transform duration-500">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Calendar className="w-4 h-4 text-accent" />
-                    <span className="text-xs font-bold text-white">TONIGHT 8PM EAT</span>
-                  </div>
-                  <h5 className="font-bold mb-2 text-white">COD: Warzone Scrims</h5>
-                  <p className="text-sm text-muted-foreground mb-3">Squad practice session</p>
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-accent" />
-                    <span className="text-sm text-white">eSports Arena Karen</span>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Empty State */}
+              {!loading && upcomingTournaments.length === 0 && (
+                <div className="flex items-center justify-center h-full min-h-[300px]">
+                  <Card className="w-full max-w-sm bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+                    <CardContent className="p-8 text-center">
+                      <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+                      <h4 className="font-bold text-white mb-2">No Upcoming Tournaments</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        No tournaments scheduled within the next week.
+                      </p>
+                      <Button 
+                        variant="outline" 
+                        onClick={() => onNavigate('tournaments')}
+                        className="gradient-border"
+                      >
+                        View All Tournaments
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
 
-              {/* Card 3 - Popular Tournament */}
-              <Card className="mb-4 lg:mb-0 lg:absolute lg:bottom-20 lg:right-8 w-full sm:w-80 lg:w-60 bg-gradient-to-br from-secondary/10 to-accent/10 border-secondary/20 glow-secondary lg:rotate-6 hover:rotate-0 transition-transform duration-500">
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-3">
-                    <Gamepad2 className="w-6 h-6 text-secondary" />
-                    <span className="font-bold text-white">This Weekend</span>
+              {/* Dynamic Tournament Cards - Grid on mobile/tablet, absolute positioning on desktop */}
+              {!loading && upcomingTournaments.length > 0 && (
+                <>
+                  {/* Mobile/Tablet: Grid Layout */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:hidden">
+                    {upcomingTournaments.map((tournament, index) => {
+                      const variant = cardVariants[index];
+                      const isLive = tournament.isLive;
+                      
+                      return (
+                        <Card 
+                          key={tournament.id}
+                          className={`bg-gradient-to-br ${variant.gradient} ${variant.border} ${variant.glow} hover:scale-105 transition-all duration-500`}
+                          style={{ animationDelay: `${index * 0.1}s` }}
+                        >
+                          <CardContent className="p-6">
+                            {/* Live indicator or Date */}
+                            {isLive ? (
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                                <span className="text-xs font-bold text-primary">LIVE NOW</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 mb-3">
+                                <Calendar className="w-4 h-4 text-accent" />
+                                <span className="text-xs font-bold text-white">
+                                  {formatTournamentDate(tournament.startDate)}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Tournament Header */}
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                                {isLive ? (
+                                  <Trophy className="w-6 h-6 text-white" />
+                                ) : (
+                                  <Gamepad2 className="w-6 h-6 text-white" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="font-bold text-white truncate">{tournament.title}</h4>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {tournament.host || 'ESPORTS-KE'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Tournament Details */}
+                            <div className="space-y-2">
+                              {tournament.maxAttendees && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <Users className="w-4 h-4 text-accent flex-shrink-0" />
+                                  <span className="truncate">
+                                    {tournament.attendees || 0}/{tournament.maxAttendees} {tournament.format === 'Team' ? 'teams' : 'players'}
+                                  </span>
+                                </div>
+                              )}
+                              {tournament.location && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <MapPin className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                  <span className="truncate">{tournament.location}</span>
+                                </div>
+                              )}
+                              {tournament.prizePool && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <Trophy className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                                  <span className="truncate">{tournament.prizePool}</span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                  <h5 className="font-bold mb-1 text-white">Valorant Championships</h5>
-                  <p className="text-sm text-muted-foreground mb-3">5v5 Team Tournament</p>
-                  <div className="flex items-center gap-2">
-                    <div className="flex -space-x-2">
-                      <div className="w-6 h-6 bg-primary rounded-full border-2 border-card"></div>
-                      <div className="w-6 h-6 bg-secondary rounded-full border-2 border-card"></div>
-                      <div className="w-6 h-6 bg-accent rounded-full border-2 border-card"></div>
-                    </div>
-                    <span className="text-xs text-muted-foreground">12 teams registered</span>
+
+                  {/* Desktop: Floating Absolute Layout */}
+                  <div className="hidden lg:block">
+                    {upcomingTournaments.map((tournament, index) => {
+                      const variant = cardVariants[index];
+                      const isLive = tournament.isLive;
+                      
+                      return (
+                        <Card 
+                          key={tournament.id}
+                          className={`absolute ${variant.position} w-72 bg-gradient-to-br ${variant.gradient} ${variant.border} ${variant.glow} ${variant.rotate} hover:rotate-0 transition-transform duration-500`}
+                        >
+                          <CardContent className="p-6">
+                            {/* Live indicator or Date */}
+                            {isLive ? (
+                              <div className="flex items-center gap-2 mb-3">
+                                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+                                <span className="text-xs font-bold text-primary">LIVE NOW</span>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2 mb-3">
+                                <Calendar className="w-4 h-4 text-accent" />
+                                <span className="text-xs font-bold text-white">
+                                  {formatTournamentDate(tournament.startDate)}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Tournament Header */}
+                            <div className="flex items-center gap-3 mb-4">
+                              <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                                {isLive ? (
+                                  <Trophy className="w-6 h-6 text-white" />
+                                ) : (
+                                  <Gamepad2 className="w-6 h-6 text-white" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <h4 className="font-bold text-white truncate">{tournament.title}</h4>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  {tournament.host || 'ESPORTS-KE'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Tournament Details */}
+                            <div className="space-y-2">
+                              {tournament.maxAttendees && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <Users className="w-4 h-4 text-accent flex-shrink-0" />
+                                  <span className="truncate">
+                                    {tournament.attendees || 0}/{tournament.maxAttendees} {tournament.format === 'Team' ? 'teams' : 'players'}
+                                  </span>
+                                </div>
+                              )}
+                              {tournament.location && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <MapPin className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                  <span className="truncate">{tournament.location}</span>
+                                </div>
+                              )}
+                              {tournament.prizePool && (
+                                <div className="flex items-center gap-2 text-sm text-white">
+                                  <Trophy className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                                  <span className="truncate">{tournament.prizePool}</span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
-                </CardContent>
-              </Card>
+                </>
+              )}
             </div>
           </div>
         </div>

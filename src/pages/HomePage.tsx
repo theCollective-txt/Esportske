@@ -1,6 +1,7 @@
 import { DynamicHero } from '../components/DynamicHero';
 import { LiveFeed } from '../components/LiveFeed';
 import { FeaturedEvents } from '../components/FeaturedEvents';
+import { PartnersSection } from '../components/PartnersSection';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
@@ -10,6 +11,7 @@ export function HomePage({ onNavigate }: HomePageProps) {
   return (
     <main className="relative">
       <DynamicHero onNavigate={onNavigate} />
+      <PartnersSection />
       <FeaturedEvents onNavigate={onNavigate} />
       <LiveFeed />
       
