@@ -3,8 +3,10 @@ import { FloatingNav } from './components/FloatingNav';
 import { HomePage } from './pages/HomePage';
 import { TournamentsPage } from './pages/TournamentsPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { AdminPanel } from './components/AdminPanel';
 import { AuthModal } from './components/AuthModal';
 import { getSupabaseClient } from './utils/supabase/client';
+import { projectId, publicAnonKey } from './utils/supabase/info';
 import { Toaster } from './components/ui/sonner';
 
 export default function App() {
@@ -12,6 +14,7 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [user, setUser] = useState<any>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
   const supabase = getSupabaseClient();
@@ -24,11 +27,34 @@ export default function App() {
       if (session && !error) {
         setUser(session.user);
         setAccessToken(session.access_token);
+        
+        // Fetch user profile
+        await fetchUserProfile(session.access_token);
       }
     };
 
     checkSession();
   }, []);
+
+  const fetchUserProfile = async (token: string) => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/profile`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (response.ok) {
+        setUserProfile(data.profile);
+      }
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+    }
+  };
 
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
@@ -36,6 +62,7 @@ export default function App() {
   };
 
   const handleOpenAuth = (mode: 'signin' | 'signup' = 'signin') => {
+    console.log('Opening auth modal with mode:', mode);
     setAuthMode(mode);
     setAuthModalOpen(true);
   };
@@ -43,6 +70,7 @@ export default function App() {
   const handleAuthSuccess = (token: string, userData: any) => {
     setAccessToken(token);
     setUser(userData);
+    fetchUserProfile(token);
   };
 
   const handleSignOut = async () => {
@@ -59,6 +87,7 @@ export default function App() {
         onNavigate={handleNavigate} 
         currentPage={currentPage}
         user={user}
+        userProfile={userProfile}
         onOpenAuth={handleOpenAuth}
         onSignOut={handleSignOut}
       />
@@ -74,6 +103,12 @@ export default function App() {
       {currentPage === 'profile' && user && accessToken && (
         <ProfilePage 
           user={user}
+          accessToken={accessToken}
+          onNavigate={handleNavigate}
+        />
+      )}
+      {currentPage === 'admin' && user && accessToken && userProfile?.role === 'admin' && (
+        <AdminPanel 
           accessToken={accessToken}
           onNavigate={handleNavigate}
         />

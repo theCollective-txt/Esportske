@@ -18,6 +18,23 @@ const getSupabaseClient = () => {
   );
 };
 
+// Helper to check if user is admin
+const checkAdmin = async (accessToken: string) => {
+  if (!accessToken) {
+    return { isAdmin: false, userId: null };
+  }
+
+  const supabase = getSupabaseClient();
+  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+
+  if (error || !user) {
+    return { isAdmin: false, userId: null };
+  }
+
+  const profile = await kv.get(`user:${user.id}`);
+  return { isAdmin: profile?.role === 'admin', userId: user.id, profile };
+};
+
 // Sign up endpoint
 app.post('/make-server-8711c492/signup', async (c) => {
   try {
@@ -223,6 +240,180 @@ app.get('/make-server-8711c492/tournament/:tournamentId/participants', async (c)
   } catch (error: any) {
     console.error('Error fetching tournament participants:', error);
     return c.json({ error: error.message || 'Failed to fetch participants' }, 500);
+  }
+});
+
+// ============= ADMIN ENDPOINTS =============
+
+// Get all users (admin only)
+app.get('/make-server-8711c492/admin/users', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const users = await kv.getByPrefix('user:');
+    return c.json({ users: users || [] });
+  } catch (error: any) {
+    console.error('Error fetching users:', error);
+    return c.json({ error: error.message || 'Failed to fetch users' }, 500);
+  }
+});
+
+// Update user role (admin only)
+app.patch('/make-server-8711c492/admin/users/:userId/role', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const userId = c.req.param('userId');
+    const { role } = await c.req.json();
+
+    if (!['user', 'admin'].includes(role)) {
+      return c.json({ error: 'Invalid role. Must be "user" or "admin"' }, 400);
+    }
+
+    const profile = await kv.get(`user:${userId}`);
+    if (!profile) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    await kv.set(`user:${userId}`, {
+      ...profile,
+      role,
+    });
+
+    return c.json({ success: true, message: 'User role updated' });
+  } catch (error: any) {
+    console.error('Error updating user role:', error);
+    return c.json({ error: error.message || 'Failed to update user role' }, 500);
+  }
+});
+
+// Delete user (admin only)
+app.delete('/make-server-8711c492/admin/users/:userId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const userId = c.req.param('userId');
+    
+    // Delete user profile
+    await kv.del(`user:${userId}`);
+    
+    // Delete all tournament registrations for this user
+    const allParticipations = await kv.getByPrefix('tournament:');
+    const userParticipations = allParticipations?.filter((p: any) => p.userId === userId) || [];
+    
+    for (const participation of userParticipations) {
+      const tournamentId = participation.tournamentId || '';
+      await kv.del(`tournament:${tournamentId}:participant:${userId}`);
+    }
+
+    return c.json({ success: true, message: 'User deleted' });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    return c.json({ error: error.message || 'Failed to delete user' }, 500);
+  }
+});
+
+// Get app configuration (admin only)
+app.get('/make-server-8711c492/admin/config', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    let config = await kv.get('app:config');
+    
+    // Initialize default config if not exists
+    if (!config) {
+      config = {
+        locationOptions: ['Westlands', 'Karen', 'CBD', 'Kileleshwa', 'Kilimani', 'Lavington', 'Parklands', 'Other'],
+        gameOptions: ['FIFA 24', 'Valorant', 'Call of Duty', 'CS:GO', 'League of Legends', 'Rocket League', 'Tekken 8', 'Apex Legends', 'Other'],
+      };
+      await kv.set('app:config', config);
+    }
+
+    return c.json({ config });
+  } catch (error: any) {
+    console.error('Error fetching config:', error);
+    return c.json({ error: error.message || 'Failed to fetch config' }, 500);
+  }
+});
+
+// Update app configuration (admin only)
+app.put('/make-server-8711c492/admin/config', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const { locationOptions, gameOptions } = await c.req.json();
+
+    if (!Array.isArray(locationOptions) || !Array.isArray(gameOptions)) {
+      return c.json({ error: 'Invalid config format' }, 400);
+    }
+
+    const config = { locationOptions, gameOptions };
+    await kv.set('app:config', config);
+
+    return c.json({ success: true, config });
+  } catch (error: any) {
+    console.error('Error updating config:', error);
+    return c.json({ error: error.message || 'Failed to update config' }, 500);
+  }
+});
+
+// Remove tournament participant (admin only)
+app.delete('/make-server-8711c492/admin/tournament/:tournamentId/participant/:userId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const tournamentId = c.req.param('tournamentId');
+    const userId = c.req.param('userId');
+
+    // Remove from tournament participants
+    await kv.del(`tournament:${tournamentId}:participant:${userId}`);
+
+    // Remove from user's registered tournaments
+    const profile = await kv.get(`user:${userId}`);
+    if (profile) {
+      const registeredTournaments = (profile.registeredTournaments || []).filter(
+        (t: any) => t.tournamentId !== tournamentId
+      );
+      await kv.set(`user:${userId}`, {
+        ...profile,
+        registeredTournaments,
+      });
+    }
+
+    return c.json({ success: true, message: 'Participant removed' });
+  } catch (error: any) {
+    console.error('Error removing participant:', error);
+    return c.json({ error: error.message || 'Failed to remove participant' }, 500);
   }
 });
 

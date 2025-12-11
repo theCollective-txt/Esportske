@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Mail, Lock, User, MapPin } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -22,8 +22,59 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
   const [favoriteGame, setFavoriteGame] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [config, setConfig] = useState<any>(null);
 
   const supabase = getSupabaseClient();
+
+  // Fetch config on mount
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/config`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setConfig(data.config);
+        } else {
+          // Use defaults if config fetch fails
+          setConfig({
+            locationOptions: ['Westlands', 'Karen', 'CBD', 'Kileleshwa', 'Kilimani', 'Lavington', 'Parklands', 'Other'],
+            gameOptions: ['FIFA 24', 'Valorant', 'Call of Duty', 'CS:GO', 'League of Legends', 'Rocket League', 'Tekken 8', 'Apex Legends', 'Other'],
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching config:', err);
+        // Use defaults on error
+        setConfig({
+          locationOptions: ['Westlands', 'Karen', 'CBD', 'Kileleshwa', 'Kilimani', 'Lavington', 'Parklands', 'Other'],
+          gameOptions: ['FIFA 24', 'Valorant', 'Call of Duty', 'CS:GO', 'League of Legends', 'Rocket League', 'Tekken 8', 'Apex Legends', 'Other'],
+        });
+      }
+    };
+
+    fetchConfig();
+  }, []);
+
+  // Update mode when initialMode changes
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode);
+      // Clear form when modal opens
+      setEmail('');
+      setPassword('');
+      setName('');
+      setLocation('');
+      setFavoriteGame('');
+      setError('');
+    }
+  }, [isOpen, initialMode]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,6 +82,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
     setError('');
 
     try {
+      console.log('Starting signup process...');
+      console.log('Signup data:', { email, name, location, favoriteGame });
+      
       // Call our server endpoint to create user
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/signup`,
@@ -50,20 +104,28 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
         }
       );
 
+      console.log('Signup response status:', response.status);
       const data = await response.json();
+      console.log('Signup response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create account');
       }
 
+      console.log('Account created successfully, now signing in...');
+      
       // Now sign in the user
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (signInError) throw signInError;
+      if (signInError) {
+        console.error('Sign in error after signup:', signInError);
+        throw signInError;
+      }
 
+      console.log('Sign in successful!');
       onAuthSuccess(signInData.session.access_token, signInData.user);
       onClose();
     } catch (err: any) {
@@ -195,14 +257,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
                       className="w-full bg-transparent border-0 focus:outline-none focus:ring-0"
                     >
                       <option value="">Select your area</option>
-                      <option value="Westlands">Westlands</option>
-                      <option value="Karen">Karen</option>
-                      <option value="CBD">CBD</option>
-                      <option value="Kileleshwa">Kileleshwa</option>
-                      <option value="Kilimani">Kilimani</option>
-                      <option value="Lavington">Lavington</option>
-                      <option value="Parklands">Parklands</option>
-                      <option value="Other">Other</option>
+                      {config?.locationOptions.map((option: string) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                   </div>
                 </div>
@@ -217,15 +274,9 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
                       className="w-full bg-transparent border-0 focus:outline-none focus:ring-0"
                     >
                       <option value="">Select your main game</option>
-                      <option value="FIFA 24">FIFA 24</option>
-                      <option value="Valorant">Valorant</option>
-                      <option value="Call of Duty">Call of Duty</option>
-                      <option value="CS:GO">CS:GO</option>
-                      <option value="League of Legends">League of Legends</option>
-                      <option value="Rocket League">Rocket League</option>
-                      <option value="Tekken 8">Tekken 8</option>
-                      <option value="Apex Legends">Apex Legends</option>
-                      <option value="Other">Other</option>
+                      {config?.gameOptions.map((option: string) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
                     </select>
                   </div>
                 </div>

@@ -80,9 +80,9 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
 
           {/* Floating event cards */}
           <div className="lg:col-span-5 relative">
-            <div className="relative h-[600px]">
+            <div className="relative h-auto lg:h-[600px]">
               {/* Card 1 - Live Tournament */}
-              <Card className="absolute top-0 right-0 w-72 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 glow rotate-3 hover:rotate-0 transition-transform duration-500">
+              <Card className="mb-4 lg:mb-0 lg:absolute lg:top-0 lg:right-0 w-full sm:w-80 lg:w-72 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20 glow lg:rotate-3 hover:rotate-0 transition-transform duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-3">
                     <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
@@ -93,16 +93,16 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
                       <Trophy className="w-6 h-6 text-white" />
                     </div>
                     <div>
-                      <h4 className="font-bold">FIFA 24 Cup</h4>
+                      <h4 className="font-bold text-white">FIFA 24 Cup</h4>
                       <p className="text-sm text-muted-foreground">@nairobifc</p>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm text-white">
                       <Users className="w-4 h-4 text-accent" />
                       <span>32 players competing</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm text-white">
                       <MapPin className="w-4 h-4 text-green-500" />
                       <span>Westlands Gaming Hub</span>
                     </div>
@@ -111,29 +111,29 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
               </Card>
 
               {/* Card 2 - Upcoming Tournament */}
-              <Card className="absolute top-32 left-0 w-64 bg-gradient-to-br from-accent/10 to-primary/10 border-accent/20 glow-accent -rotate-6 hover:rotate-0 transition-transform duration-500">
+              <Card className="mb-4 lg:mb-0 lg:absolute lg:top-32 lg:left-0 w-full sm:w-80 lg:w-64 bg-gradient-to-br from-accent/10 to-primary/10 border-accent/20 glow-accent lg:-rotate-6 hover:rotate-0 transition-transform duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-2 mb-3">
                     <Calendar className="w-4 h-4 text-accent" />
-                    <span className="text-xs font-bold">TONIGHT 8PM EAT</span>
+                    <span className="text-xs font-bold text-white">TONIGHT 8PM EAT</span>
                   </div>
-                  <h5 className="font-bold mb-2">COD: Warzone Scrims</h5>
+                  <h5 className="font-bold mb-2 text-white">COD: Warzone Scrims</h5>
                   <p className="text-sm text-muted-foreground mb-3">Squad practice session</p>
                   <div className="flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-accent" />
-                    <span className="text-sm">eSports Arena Karen</span>
+                    <span className="text-sm text-white">eSports Arena Karen</span>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Card 3 - Popular Tournament */}
-              <Card className="absolute bottom-20 right-8 w-60 bg-gradient-to-br from-secondary/10 to-accent/10 border-secondary/20 glow-secondary rotate-6 hover:rotate-0 transition-transform duration-500">
+              <Card className="mb-4 lg:mb-0 lg:absolute lg:bottom-20 lg:right-8 w-full sm:w-80 lg:w-60 bg-gradient-to-br from-secondary/10 to-accent/10 border-secondary/20 glow-secondary lg:rotate-6 hover:rotate-0 transition-transform duration-500">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-3">
                     <Gamepad2 className="w-6 h-6 text-secondary" />
-                    <span className="font-bold">This Weekend</span>
+                    <span className="font-bold text-white">This Weekend</span>
                   </div>
-                  <h5 className="font-bold mb-1">Valorant Championships</h5>
+                  <h5 className="font-bold mb-1 text-white">Valorant Championships</h5>
                   <p className="text-sm text-muted-foreground mb-3">5v5 Team Tournament</p>
                   <div className="flex items-center gap-2">
                     <div className="flex -space-x-2">

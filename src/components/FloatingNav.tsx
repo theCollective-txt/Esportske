@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import logoImage from 'figma:asset/d71379c4510e7389463f3b7223ce4bebb78021ce.png';
@@ -10,9 +10,10 @@ interface FloatingNavProps {
   user: any;
   onOpenAuth: (mode?: 'signin' | 'signup') => void;
   onSignOut: () => void;
+  userProfile?: any;
 }
 
-export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignOut }: FloatingNavProps) {
+export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignOut, userProfile }: FloatingNavProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleNavigate = (page: string) => {
@@ -33,33 +34,36 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
             >
               <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <Gamepad2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                <div className="absolute -top-1 -right-1 w-2 h-2 sm:w-3 sm:h-3 bg-green-500 rounded-full animate-pulse"></div>
               </div>
             </button>
 
             {/* Center navigation - Desktop */}
             <nav className="hidden lg:flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10"
+              <button 
                 onClick={() => handleNavigate('tournaments')}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
               >
                 <Calendar className="w-4 h-4" />
                 Tournaments
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
+              </button>
+              <button 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+              >
                 <Gamepad2 className="w-4 h-4" />
                 Scrims & Practice
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
+              </button>
+              <button 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+              >
                 <MapPin className="w-4 h-4" />
                 Gaming Lounges
-              </Button>
-              <Button variant="ghost" size="sm" className="gap-2 text-foreground hover:text-foreground hover:bg-primary/10">
+              </button>
+              <button 
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+              >
                 <Users className="w-4 h-4" />
                 Community
-              </Button>
+              </button>
             </nav>
 
             {/* Right side actions - Desktop */}
@@ -68,6 +72,18 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
 
               {user ? (
                 <>
+                  {userProfile?.role === 'admin' && (
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="rounded-full hidden xl:flex"
+                      onClick={() => handleNavigate('admin')}
+                      title="Admin Panel"
+                    >
+                      <Shield className="w-4 h-4 text-primary" />
+                    </Button>
+                  )}
+                  
                   <Button 
                     variant="ghost" 
                     size="icon" 
@@ -174,6 +190,19 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               <div className="pt-3 border-t border-border space-y-2">
                 {user ? (
                   <>
+                    {userProfile?.role === 'admin' && (
+                      <button 
+                        onClick={() => handleNavigate('admin')}
+                        className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-primary/10 hover:bg-primary/20 transition-colors border border-primary/20"
+                      >
+                        <Shield className="w-5 h-5 text-primary" />
+                        <div className="flex-1 text-left">
+                          <p className="font-black text-primary">Admin Panel</p>
+                          <p className="text-xs text-muted-foreground">Manage platform</p>
+                        </div>
+                      </button>
+                    )}
+                    
                     <button 
                       onClick={() => handleNavigate('profile')}
                       className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-muted/50 hover:bg-muted/70 transition-colors"
