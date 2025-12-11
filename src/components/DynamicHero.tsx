@@ -23,12 +23,12 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
             <div className="space-y-4">
               <div className="flex items-center gap-3 text-primary text-sm font-medium">
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                NAIROBI'S GAMING COMMUNITY
+                KENYA'S GAMING COMMUNITY
                 <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
               </div>
               
               <h1 className="text-6xl lg:text-8xl font-black leading-none">
-                NAIROBI
+                KENYA
                 <br />
                 <span className="text-primary">GAMERS</span>
                 <br />
@@ -38,9 +38,10 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
               </h1>
               
               <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
-                Join Nairobi's most competitive gaming community. From Westlands to Karen, 
-                discover tournaments, scrims, watch parties, and connect with fellow gamers 
-                across the city.
+                Join Kenya's only gamer community where you call the shots.
+                eports.ke is designed to hand ownership, governance, and community development over to the gamers themselves.
+                From JKUAT to KU, UON to TUM, Murima to Lakeside, discover tournaments, scrims, watch parties, and connect with fellow gamers 
+                across the country.
               </p>
             </div>
 
