@@ -136,12 +136,7 @@ export function FeaturedEvents({ onNavigate }: FeaturedEventsProps) {
                         </div>
                       </div>
                       
-                      {/* Play button overlay */}
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button size="icon" className="rounded-full bg-white/20 backdrop-blur-sm hover:bg-white/30 h-16 w-16">
-                          {event.isLive ? <Trophy className="w-8 h-8 text-white" /> : <Play className="w-8 h-8 text-white" />}
-                        </Button>
-                      </div>
+                      {/* Play button overlay - removed */}
                     </div>
 
                     {/* Event Info */}
