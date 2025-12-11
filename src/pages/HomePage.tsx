@@ -27,9 +27,14 @@ export function HomePage({ onNavigate }: HomePageProps) {
             find tournaments, connect with fellow gamers, and level up your competitive gaming.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button className="bg-gradient-to-r from-primary via-secondary to-accent text-white px-12 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform glow">
+            <a 
+              href="https://discord.gg/pyv8XukVu2" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="bg-gradient-to-r from-primary via-secondary to-accent text-white px-12 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform glow inline-block"
+            >
               Join ESPORTS-KE
-            </button>
+            </a>
             <button 
               onClick={() => onNavigate('tournaments')}
               className="border-2 border-primary text-primary px-12 py-4 rounded-full font-bold text-lg hover:bg-primary hover:text-white transition-colors"
