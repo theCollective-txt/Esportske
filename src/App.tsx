@@ -161,7 +161,22 @@ export default function App() {
         onSignOut={handleSignOut}
       />
       
-      {currentPage === 'home' && <HomePage onNavigate={handleNavigate} />}
+      {currentPage === 'home' && (
+        <HomePage 
+          onNavigate={handleNavigate} 
+          user={userProfile}
+          accessToken={accessToken || undefined}
+          onOpenAuthModal={() => {
+            setAuthMode('signin');
+            setAuthModalOpen(true);
+          }}
+          onRefreshProfile={() => {
+            if (accessToken) {
+              fetchUserProfile(accessToken);
+            }
+          }}
+        />
+      )}
       {currentPage === 'tournaments' && (
         <TournamentsPage 
           user={user} 

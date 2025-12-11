@@ -5,14 +5,24 @@ import { PartnersSection } from '../components/PartnersSection';
 
 interface HomePageProps {
   onNavigate: (page: string) => void;
+  user?: any;
+  accessToken?: string;
+  onOpenAuthModal?: () => void;
+  onRefreshProfile?: () => void;
 }
 
-export function HomePage({ onNavigate }: HomePageProps) {
+export function HomePage({ onNavigate, user, accessToken, onOpenAuthModal, onRefreshProfile }: HomePageProps) {
   return (
     <main className="relative">
       <DynamicHero onNavigate={onNavigate} />
       <PartnersSection />
-      <FeaturedEvents onNavigate={onNavigate} />
+      <FeaturedEvents 
+        onNavigate={onNavigate}
+        user={user}
+        accessToken={accessToken}
+        onOpenAuthModal={onOpenAuthModal}
+        onRefreshProfile={onRefreshProfile}
+      />
       <LiveFeed />
       
       {/* Call to action section */}

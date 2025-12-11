@@ -5,14 +5,20 @@ import { Card, CardContent, CardHeader } from './ui/card';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { TournamentDetailsModal } from './TournamentDetailsModal';
 
 interface FeaturedEventsProps {
   onNavigate: (page: string) => void;
+  user?: any;
+  accessToken?: string;
+  onOpenAuthModal?: () => void;
+  onRefreshProfile?: () => void;
 }
 
-export function FeaturedEvents({ onNavigate }: FeaturedEventsProps) {
+export function FeaturedEvents({ onNavigate, user, accessToken, onOpenAuthModal, onRefreshProfile }: FeaturedEventsProps) {
   const [featuredEvents, setFeaturedEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedTournament, setSelectedTournament] = useState<any>(null);
 
   useEffect(() => {
     fetchFeaturedEvents();
@@ -168,7 +174,10 @@ export function FeaturedEvents({ onNavigate }: FeaturedEventsProps) {
                       </div>
 
                       {/* Action Button */}
-                      <Button className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90">
+                      <Button 
+                        className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+                        onClick={() => setSelectedTournament(event)}
+                      >
                         {event.isLive ? 'Watch Now' : 'Register'}
                       </Button>
                     </div>
@@ -190,6 +199,18 @@ export function FeaturedEvents({ onNavigate }: FeaturedEventsProps) {
           </>
         )}
       </div>
+      
+      {/* Tournament Details Modal */}
+      {selectedTournament && (
+        <TournamentDetailsModal
+          tournament={selectedTournament}
+          onClose={() => setSelectedTournament(null)}
+          user={user}
+          accessToken={accessToken}
+          onOpenAuthModal={onOpenAuthModal}
+          onRegistrationSuccess={onRefreshProfile}
+        />
+      )}
     </section>
   );
 }

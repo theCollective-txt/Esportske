@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Settings, Download, Shield, Trash2, Save, Plus, X, Trophy, Edit, Calendar } from 'lucide-react';
+import { Users, Settings, Download, Shield, Trash2, Save, Plus, X, Trophy, Edit, Calendar, Eye } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -27,6 +27,8 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
   const [success, setSuccess] = useState('');
   const [editingTournament, setEditingTournament] = useState<any>(null);
   const [showTournamentForm, setShowTournamentForm] = useState(false);
+  const [viewingParticipants, setViewingParticipants] = useState<any>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
   
   // Helper function to auto-generate date display from fullDate
   const getDateDisplay = (fullDate: string): string => {
@@ -122,6 +124,67 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchParticipants = async (tournamentId: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/tournament/${tournamentId}/participants`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to fetch participants');
+      }
+
+      setParticipants(data.participants || []);
+    } catch (err: any) {
+      console.error('Error fetching participants:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const removeParticipant = async (tournamentId: string, userId: string) => {
+    if (!confirm('Are you sure you want to remove this participant?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/tournament/${tournamentId}/participant/${userId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to remove participant');
+      }
+
+      setSuccess('Participant removed successfully');
+      setTimeout(() => setSuccess(''), 3000);
+      
+      // Refresh participants list
+      if (viewingParticipants) {
+        fetchParticipants(viewingParticipants.id);
+      }
+    } catch (err: any) {
+      console.error('Error removing participant:', err);
+      setError(err.message);
     }
   };
 
@@ -576,6 +639,18 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
+                                  setViewingParticipants(tournament);
+                                  fetchParticipants(tournament.id);
+                                }}
+                                className="text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                                title="View Participants"
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
                                   setEditingTournament(tournament);
                                   setShowTournamentForm(true);
                                 }}
@@ -888,6 +963,26 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                         onChange={(e) => setEditingTournament({ ...editingTournament, tags: e.target.value.split(',').map((t: string) => t.trim()) })}
                       />
                     </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm text-muted-foreground">Description</label>
+                      <textarea
+                        placeholder="Enter tournament description... (What is this tournament about? What can players expect?)"
+                        value={editingTournament?.description || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, description: e.target.value })}
+                        rows={4}
+                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm resize-y min-h-[100px]"
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm text-muted-foreground">Requirements</label>
+                      <textarea
+                        placeholder="Enter tournament requirements... (Rules, eligibility, what players need to bring/have)"
+                        value={editingTournament?.requirements || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, requirements: e.target.value })}
+                        rows={4}
+                        className="w-full px-3 py-2 bg-background border border-input rounded-md text-sm resize-y min-h-[100px]"
+                      />
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2 mt-4">
                     <Button
@@ -917,6 +1012,81 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                       {loading ? 'Saving...' : 'Save'}
                     </Button>
                   </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Participants Modal */}
+            {viewingParticipants && (
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle className="text-xl">Tournament Participants</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {viewingParticipants.title} • {participants.length} registered
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setViewingParticipants(null);
+                      setParticipants([]);
+                    }}
+                    className="text-muted-foreground hover:text-white"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {loading ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      Loading participants...
+                    </div>
+                  ) : participants.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      No participants registered yet
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead className="border-b border-border">
+                          <tr className="text-left text-sm text-muted-foreground">
+                            <th className="p-4 font-medium">Name</th>
+                            <th className="p-4 font-medium">Email</th>
+                            <th className="p-4 font-medium">Location</th>
+                            <th className="p-4 font-medium">Favorite Game</th>
+                            <th className="p-4 font-medium">Registered</th>
+                            <th className="p-4 font-medium">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {participants.map((participant) => (
+                            <tr key={participant.userId} className="border-b border-border hover:bg-muted/30 transition-colors">
+                              <td className="p-4 text-white font-medium">{participant.userName}</td>
+                              <td className="p-4 text-sm text-muted-foreground">{participant.userEmail}</td>
+                              <td className="p-4 text-sm">{participant.location || '-'}</td>
+                              <td className="p-4 text-sm">{participant.favoriteGame || '-'}</td>
+                              <td className="p-4 text-sm">
+                                {participant.registeredAt ? new Date(participant.registeredAt).toLocaleDateString() : '-'}
+                              </td>
+                              <td className="p-4">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => removeParticipant(viewingParticipants.id, participant.userId)}
+                                  className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                                  title="Remove from tournament"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

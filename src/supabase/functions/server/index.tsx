@@ -3,6 +3,7 @@ import { cors } from 'npm:hono/cors';
 import { logger } from 'npm:hono/logger';
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import * as kv from './kv_store.tsx';
+import { jwtDecode } from 'npm:jwt-decode@4';
 
 const app = new Hono();
 
@@ -43,9 +44,38 @@ const getSupabaseClientWithAuth = (accessToken: string) => {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
+      },
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
       }
     }
   );
+};
+
+// Helper to get user from access token
+const getUserFromToken = async (accessToken: string) => {
+  try {
+    // Decode the JWT to get the user ID
+    const decoded: any = jwtDecode(accessToken);
+    
+    if (!decoded || !decoded.sub) {
+      return { user: null, error: 'Invalid token' };
+    }
+
+    // Get the user from Supabase using admin client
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase.auth.admin.getUserById(decoded.sub);
+
+    if (error || !data.user) {
+      return { user: null, error: error?.message || 'User not found' };
+    }
+
+    return { user: data.user, error: null };
+  } catch (err: any) {
+    console.error('Error decoding/verifying token:', err);
+    return { user: null, error: err.message || 'Invalid token' };
+  }
 };
 
 // Helper to check if user is admin
@@ -54,8 +84,7 @@ const checkAdmin = async (accessToken: string) => {
     return { isAdmin: false, userId: null };
   }
 
-  const supabase = getSupabaseClientWithAuth(accessToken);
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { user, error } = await getUserFromToken(accessToken);
 
   if (error || !user) {
     return { isAdmin: false, userId: null };
@@ -117,6 +146,7 @@ app.post('/make-server-8711c492/signup', async (c) => {
       favoriteGame: favoriteGame || '',
       joinedAt: new Date().toISOString(),
       registeredTournaments: [],
+      registrationHistory: {},
     });
 
     return c.json({ 
@@ -144,9 +174,8 @@ app.get('/make-server-8711c492/profile', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClientWithAuth(accessToken);
-    console.log('Profile endpoint - Getting user from Supabase auth...');
-    const { data: { user }, error } = await supabase.auth.getUser();
+    console.log('Profile endpoint - Getting user from token...');
+    const { user, error } = await getUserFromToken(accessToken);
 
     if (error || !user) {
       console.error('Profile endpoint - Auth error:', error);
@@ -195,8 +224,7 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClientWithAuth(accessToken);
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const { user, error: authError } = await getUserFromToken(accessToken);
 
     if (authError || !user) {
       console.error('Authorization error while registering for tournament:', authError);
@@ -222,6 +250,14 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
       return c.json({ error: 'Already registered for this tournament' }, 400);
     }
 
+    // Check registration history and limit (max 3 register/unregister cycles)
+    const registrationHistory = profile.registrationHistory || {};
+    const tournamentHistory = registrationHistory[tournamentId] || { count: 0, isRegistered: false };
+    
+    if (tournamentHistory.count >= 3) {
+      return c.json({ error: 'Registration limit reached (3 attempts maximum)' }, 400);
+    }
+
     // Add tournament registration
     registeredTournaments.push({
       tournamentId,
@@ -229,10 +265,16 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
       registeredAt: new Date().toISOString(),
     });
 
+    // Update registration history
+    tournamentHistory.count += 1;
+    tournamentHistory.isRegistered = true;
+    registrationHistory[tournamentId] = tournamentHistory;
+
     // Update user profile
     await kv.set(`user:${user.id}`, {
       ...profile,
       registeredTournaments,
+      registrationHistory,
     });
 
     // Store tournament registration (for tournament participant list)
@@ -266,8 +308,8 @@ app.get('/make-server-8711c492/my-tournaments', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClientWithAuth(accessToken);
-    const { data: { user }, error } = await supabase.auth.getUser();
+    const supabase = getSupabaseClient();
+    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
 
     if (error || !user) {
       console.error('Error getting user tournaments:', error);
@@ -287,6 +329,73 @@ app.get('/make-server-8711c492/my-tournaments', async (c) => {
   } catch (error: any) {
     console.error('Error fetching user tournaments:', error);
     return c.json({ error: error.message || 'Failed to fetch tournaments' }, 500);
+  }
+});
+
+// Unregister from tournament
+app.post('/make-server-8711c492/unregister-tournament', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    
+    if (!accessToken) {
+      return c.json({ error: 'Unauthorized - no access token provided' }, 401);
+    }
+
+    const { user, error: authError } = await getUserFromToken(accessToken);
+
+    if (authError || !user) {
+      console.error('Authorization error while unregistering from tournament:', authError);
+      return c.json({ error: 'Unauthorized - invalid access token' }, 401);
+    }
+
+    const { tournamentId } = await c.req.json();
+
+    if (!tournamentId) {
+      return c.json({ error: 'Tournament ID is required' }, 400);
+    }
+
+    // Get user profile
+    const profile = await kv.get(`user:${user.id}`);
+
+    if (!profile) {
+      return c.json({ error: 'User profile not found' }, 404);
+    }
+
+    // Check if registered
+    const registeredTournaments = profile.registeredTournaments || [];
+    const isRegistered = registeredTournaments.some((t: any) => t.tournamentId === tournamentId);
+    
+    if (!isRegistered) {
+      return c.json({ error: 'Not registered for this tournament' }, 400);
+    }
+
+    // Remove from registered tournaments
+    const updatedTournaments = registeredTournaments.filter((t: any) => t.tournamentId !== tournamentId);
+
+    // Update registration history
+    const registrationHistory = profile.registrationHistory || {};
+    const tournamentHistory = registrationHistory[tournamentId] || { count: 0, isRegistered: false };
+    tournamentHistory.isRegistered = false;
+    registrationHistory[tournamentId] = tournamentHistory;
+
+    // Update user profile
+    await kv.set(`user:${user.id}`, {
+      ...profile,
+      registeredTournaments: updatedTournaments,
+      registrationHistory,
+    });
+
+    // Remove tournament participant entry
+    await kv.del(`tournament:${tournamentId}:participant:${user.id}`);
+
+    return c.json({ 
+      success: true,
+      message: 'Successfully unregistered from tournament',
+      registeredTournaments: updatedTournaments,
+    });
+  } catch (error: any) {
+    console.error('Error unregistering from tournament:', error);
+    return c.json({ error: error.message || 'Failed to unregister from tournament' }, 500);
   }
 });
 
