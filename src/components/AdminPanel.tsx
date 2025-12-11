@@ -35,6 +35,9 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
   const [showLocationDropdown, setShowLocationDropdown] = useState(false);
   const [locationSearchTerm, setLocationSearchTerm] = useState('');
   const locationInputRef = useRef<HTMLDivElement>(null);
+  const [gameSearchResults, setGameSearchResults] = useState<string[]>([]);
+  const [searchingGames, setSearchingGames] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (activeTab === 'users') {
@@ -370,6 +373,41 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
     }
   };
 
+  const searchGames = async (searchTerm: string) => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    setSearchingGames(true);
+    searchTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/search-games`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ searchTerm }),
+          }
+        );
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to search games');
+        }
+
+        setGameSearchResults(data.games || []);
+      } catch (err: any) {
+        console.error('Error searching games:', err);
+        setError(err.message);
+      } finally {
+        setSearchingGames(false);
+      }
+    }, 300);
+  };
+
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -589,88 +627,133 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      placeholder="Tournament Title *"
-                      value={editingTournament?.title || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, title: e.target.value })}
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Tournament Title *</label>
+                      <Input
+                        placeholder="Enter tournament name..."
+                        value={editingTournament?.title || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, title: e.target.value })}
+                      />
+                    </div>
                     <div className="space-y-2 relative">
                       <label className="text-sm text-muted-foreground">Game *</label>
-                      <Input
-                        placeholder="Type to search games..."
-                        value={editingTournament?.game || ''}
-                        onChange={(e) => {
-                          setEditingTournament({ ...editingTournament, game: e.target.value });
-                          setShowGameDropdown(true);
-                        }}
-                        onFocus={() => setShowGameDropdown(true)}
-                        onBlur={() => setTimeout(() => setShowGameDropdown(false), 200)}
-                      />
-                      {showGameDropdown && config?.gameOptions && (
-                        <div className="absolute z-50 bg-background border border-border rounded-lg shadow-lg w-full max-h-48 overflow-y-auto mt-1">
-                          {config.gameOptions
-                            .filter((game: string) => 
-                              game.toLowerCase().includes((editingTournament?.game || '').toLowerCase())
-                            )
-                            .map((game: string, index: number) => (
-                              <div
-                                key={index}
-                                className="px-3 py-2 cursor-pointer hover:bg-muted transition-colors text-white"
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                  setEditingTournament({ ...editingTournament, game });
-                                  setShowGameDropdown(false);
-                                }}
-                              >
-                                {game}
+                      <div className="relative">
+                        <Input
+                          placeholder="Type to search games..."
+                          value={editingTournament?.game || ''}
+                          onChange={(e) => {
+                            setEditingTournament({ ...editingTournament, game: e.target.value });
+                            if (e.target.value.length > 0) {
+                              setShowGameDropdown(true);
+                              setGameSearchTerm(e.target.value);
+                              searchGames(e.target.value);
+                            } else {
+                              setShowGameDropdown(false);
+                            }
+                          }}
+                          onFocus={() => {
+                            if ((editingTournament?.game || '').length > 0) {
+                              setShowGameDropdown(true);
+                              setGameSearchTerm(editingTournament?.game || '');
+                              searchGames(editingTournament?.game || '');
+                            }
+                          }}
+                          onBlur={() => setTimeout(() => setShowGameDropdown(false), 300)}
+                          className="pr-10"
+                        />
+                        <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      {showGameDropdown && config?.gameOptions && (editingTournament?.game || '').length > 0 && (
+                        <div className="absolute z-50 w-full mt-2 bg-card border-2 border-primary/20 rounded-xl shadow-2xl overflow-hidden backdrop-blur-sm">
+                          <div className="max-h-64 overflow-y-auto custom-scrollbar">
+                            {searchingGames ? (
+                              <div className="px-4 py-8 text-center">
+                                <div className="text-muted-foreground text-sm">Searching games...</div>
                               </div>
-                            ))}
-                          {config.gameOptions.filter((game: string) => 
-                            game.toLowerCase().includes((editingTournament?.game || '').toLowerCase())
-                          ).length === 0 && (
-                            <div className="px-3 py-2 text-muted-foreground text-sm">
-                              No games found
-                            </div>
-                          )}
+                            ) : gameSearchResults.length > 0 ? (
+                              gameSearchResults.map((game: string, index: number) => (
+                                <div
+                                  key={index}
+                                  className="group px-4 py-3 cursor-pointer hover:bg-primary/10 transition-all duration-200 border-b border-border/50 last:border-0 flex items-center gap-3"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setEditingTournament({ ...editingTournament, game });
+                                    setShowGameDropdown(false);
+                                  }}
+                                >
+                                  <div className="w-2 h-2 rounded-full bg-primary/50 group-hover:bg-primary group-hover:scale-150 transition-all duration-200"></div>
+                                  <span className="text-white font-medium group-hover:text-primary transition-colors">{game}</span>
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-4 py-8 text-center">
+                                <div className="text-muted-foreground text-sm mb-1">No games found</div>
+                                <div className="text-xs text-muted-foreground/70">Try a different search term</div>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
-                    <Input
-                      placeholder="Host"
-                      value={editingTournament?.host || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, host: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Location *"
-                      value={editingTournament?.location || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, location: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Area (e.g., Westlands)"
-                      value={editingTournament?.area || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, area: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Date (e.g., Tonight, Tomorrow)"
-                      value={editingTournament?.date || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, date: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Full Date"
-                      type="date"
-                      value={editingTournament?.fullDate || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, fullDate: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Time (e.g., 8:00 PM EAT)"
-                      value={editingTournament?.time || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, time: e.target.value })}
-                    />
-                    <Input
-                      placeholder="Duration (e.g., 4 hours)"
-                      value={editingTournament?.duration || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, duration: e.target.value })}
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Host</label>
+                      <Input
+                        placeholder="Enter host name..."
+                        value={editingTournament?.host || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, host: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Location *</label>
+                      <Input
+                        placeholder="Enter location..."
+                        value={editingTournament?.location || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, location: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Area</label>
+                      <Input
+                        placeholder="e.g., Westlands, Karen..."
+                        value={editingTournament?.area || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, area: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Date Display</label>
+                      <Input
+                        placeholder="e.g., Tonight, Tomorrow..."
+                        value={editingTournament?.date || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, date: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Full Date</label>
+                      <Input
+                        placeholder="Select date..."
+                        type="date"
+                        value={editingTournament?.fullDate || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, fullDate: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Time</label>
+                      <Input
+                        placeholder="e.g., 8:00 PM EAT..."
+                        value={editingTournament?.time || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, time: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Duration</label>
+                      <Input
+                        placeholder="e.g., 4 hours..."
+                        value={editingTournament?.duration || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, duration: e.target.value })}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Format</label>
                       <Select 
@@ -712,11 +795,14 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Input
-                      placeholder="Prize Pool (e.g., KES 50,000)"
-                      value={editingTournament?.prizePool || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, prizePool: e.target.value })}
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Prize Pool</label>
+                      <Input
+                        placeholder="e.g., KES 50,000..."
+                        value={editingTournament?.prizePool || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, prizePool: e.target.value })}
+                      />
+                    </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Skill Level</label>
                       <Select 
@@ -736,24 +822,31 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    <Input
-                      placeholder="Max Attendees"
-                      type="number"
-                      value={editingTournament?.maxAttendees || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, maxAttendees: parseInt(e.target.value) || 0 })}
-                    />
-                    <Input
-                      placeholder="Image URL"
-                      value={editingTournament?.image || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, image: e.target.value })}
-                      className="md:col-span-2"
-                    />
-                    <Input
-                      placeholder="Tags (comma separated)"
-                      value={editingTournament?.tags?.join(', ') || ''}
-                      onChange={(e) => setEditingTournament({ ...editingTournament, tags: e.target.value.split(',').map((t: string) => t.trim()) })}
-                      className="md:col-span-2"
-                    />
+                    <div className="space-y-2">
+                      <label className="text-sm text-muted-foreground">Max Attendees</label>
+                      <Input
+                        placeholder="Enter max number..."
+                        type="number"
+                        value={editingTournament?.maxAttendees || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, maxAttendees: parseInt(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm text-muted-foreground">Image URL</label>
+                      <Input
+                        placeholder="Enter image URL..."
+                        value={editingTournament?.image || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, image: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className="text-sm text-muted-foreground">Tags</label>
+                      <Input
+                        placeholder="e.g., competitive, casual, beginner-friendly (comma separated)..."
+                        value={editingTournament?.tags?.join(', ') || ''}
+                        onChange={(e) => setEditingTournament({ ...editingTournament, tags: e.target.value.split(',').map((t: string) => t.trim()) })}
+                      />
+                    </div>
                   </div>
                   <div className="flex justify-end gap-2 mt-4">
                     <Button

@@ -33,14 +33,29 @@ const getSupabaseClient = () => {
   );
 };
 
+// Create Supabase client with user's access token
+const getSupabaseClientWithAuth = (accessToken: string) => {
+  return createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+    {
+      global: {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }
+    }
+  );
+};
+
 // Helper to check if user is admin
 const checkAdmin = async (accessToken: string) => {
   if (!accessToken) {
     return { isAdmin: false, userId: null };
   }
 
-  const supabase = getSupabaseClient();
-  const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+  const supabase = getSupabaseClientWithAuth(accessToken);
+  const { data: { user }, error } = await supabase.auth.getUser();
 
   if (error || !user) {
     return { isAdmin: false, userId: null };
@@ -129,9 +144,9 @@ app.get('/make-server-8711c492/profile', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = getSupabaseClientWithAuth(accessToken);
     console.log('Profile endpoint - Getting user from Supabase auth...');
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
       console.error('Profile endpoint - Auth error:', error);
@@ -180,8 +195,8 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClient();
-    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    const supabase = getSupabaseClientWithAuth(accessToken);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
       console.error('Authorization error while registering for tournament:', authError);
@@ -251,8 +266,8 @@ app.get('/make-server-8711c492/my-tournaments', async (c) => {
       return c.json({ error: 'Unauthorized - no access token provided' }, 401);
     }
 
-    const supabase = getSupabaseClient();
-    const { data: { user }, error } = await supabase.auth.getUser(accessToken);
+    const supabase = getSupabaseClientWithAuth(accessToken);
+    const { data: { user }, error } = await supabase.auth.getUser();
 
     if (error || !user) {
       console.error('Error getting user tournaments:', error);
@@ -544,6 +559,46 @@ app.put('/make-server-8711c492/admin/config', async (c) => {
   } catch (error: any) {
     console.error('Error updating config:', error);
     return c.json({ error: error.message || 'Failed to update config' }, 500);
+  }
+});
+
+// Search games endpoint (admin only)
+app.post('/make-server-8711c492/admin/search-games', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const { searchTerm } = await c.req.json();
+
+    if (!searchTerm || typeof searchTerm !== 'string') {
+      return c.json({ error: 'Search term is required' }, 400);
+    }
+
+    // Get the config from KV store
+    let config = await kv.get('app:config');
+    
+    // Initialize default config if not exists
+    if (!config) {
+      config = {
+        locationOptions: ['Westlands', 'Karen', 'CBD', 'Kileleshwa', 'Kilimani', 'Lavington', 'Parklands', 'Other'],
+        gameOptions: ['FIFA 24', 'Valorant', 'Call of Duty', 'CS:GO', 'League of Legends', 'Rocket League', 'Tekken 8', 'Apex Legends', 'Other'],
+      };
+      await kv.set('app:config', config);
+    }
+
+    // Filter games based on search term
+    const games = config.gameOptions.filter((game: string) => 
+      game.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    return c.json({ games });
+  } catch (error: any) {
+    console.error('Error searching games:', error);
+    return c.json({ error: error.message || 'Failed to search games' }, 500);
   }
 });
 

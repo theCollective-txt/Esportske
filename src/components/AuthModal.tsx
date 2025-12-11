@@ -20,6 +20,8 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
   const [name, setName] = useState('');
   const [location, setLocation] = useState('');
   const [favoriteGame, setFavoriteGame] = useState('');
+  const [otherLocation, setOtherLocation] = useState('');
+  const [otherFavoriteGame, setOtherFavoriteGame] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [config, setConfig] = useState<any>(null);
@@ -72,6 +74,8 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
       setName('');
       setLocation('');
       setFavoriteGame('');
+      setOtherLocation('');
+      setOtherFavoriteGame('');
       setError('');
     }
   }, [isOpen, initialMode]);
@@ -98,8 +102,8 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
             email,
             password,
             name,
-            location,
-            favoriteGame,
+            location: location === 'Other' ? otherLocation : location,
+            favoriteGame: favoriteGame === 'Other' ? otherFavoriteGame : favoriteGame,
           }),
         }
       );
@@ -264,6 +268,23 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
                   </div>
                 </div>
 
+                {location === 'Other' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Specify Location</label>
+                    <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Enter your location"
+                        value={otherLocation}
+                        onChange={(e) => setOtherLocation(e.target.value)}
+                        required
+                        className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Favorite Game</label>
                   <div className="bg-muted/50 rounded-lg px-3 py-2">
@@ -280,6 +301,23 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
                     </select>
                   </div>
                 </div>
+
+                {favoriteGame === 'Other' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Specify Game</label>
+                    <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Enter your favorite game"
+                        value={otherFavoriteGame}
+                        onChange={(e) => setOtherFavoriteGame(e.target.value)}
+                        required
+                        className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
+                      />
+                    </div>
+                  </div>
+                )}
               </>
             )}
 
