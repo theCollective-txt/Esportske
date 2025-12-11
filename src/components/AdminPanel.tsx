@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Users, Settings, Download, Shield, Trash2, Save, Plus, X, Trophy, Edit, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -28,22 +28,39 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
   const [editingTournament, setEditingTournament] = useState<any>(null);
   const [showTournamentForm, setShowTournamentForm] = useState(false);
   
-  // Autocomplete state
-  const [showGameDropdown, setShowGameDropdown] = useState(false);
-  const [gameSearchTerm, setGameSearchTerm] = useState('');
-  const gameInputRef = useRef<HTMLDivElement>(null);
-  const [showLocationDropdown, setShowLocationDropdown] = useState(false);
-  const [locationSearchTerm, setLocationSearchTerm] = useState('');
-  const locationInputRef = useRef<HTMLDivElement>(null);
-  const [gameSearchResults, setGameSearchResults] = useState<string[]>([]);
-  const [searchingGames, setSearchingGames] = useState(false);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Helper function to auto-generate date display from fullDate
+  const getDateDisplay = (fullDate: string): string => {
+    if (!fullDate) return '';
+    
+    const selectedDate = new Date(fullDate + 'T00:00:00');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    const diffTime = selectedDate.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return 'Today';
+    } else if (diffDays === 1) {
+      return 'Tomorrow';
+    } else {
+      // Format as "Dec 12" or similar
+      return selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  };
 
   useEffect(() => {
     if (activeTab === 'users') {
       fetchUsers();
     } else if (activeTab === 'tournaments') {
       fetchTournaments();
+      // Also fetch config to populate game dropdown
+      if (!config) {
+        fetchConfig();
+      }
     } else if (activeTab === 'config') {
       fetchConfig();
     }
@@ -373,41 +390,6 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
     }
   };
 
-  const searchGames = async (searchTerm: string) => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    setSearchingGames(true);
-    searchTimeoutRef.current = setTimeout(async () => {
-      try {
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/search-games`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ searchTerm }),
-          }
-        );
-
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || 'Failed to search games');
-        }
-
-        setGameSearchResults(data.games || []);
-      } catch (err: any) {
-        console.error('Error searching games:', err);
-        setError(err.message);
-      } finally {
-        setSearchingGames(false);
-      }
-    }, 300);
-  };
-
   return (
     <div className="min-h-screen pt-24 pb-12">
       <div className="container mx-auto px-4 max-w-7xl">
@@ -637,65 +619,23 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                     </div>
                     <div className="space-y-2 relative">
                       <label className="text-sm text-muted-foreground">Game *</label>
-                      <div className="relative">
-                        <Input
-                          placeholder="Type to search games..."
-                          value={editingTournament?.game || ''}
-                          onChange={(e) => {
-                            setEditingTournament({ ...editingTournament, game: e.target.value });
-                            if (e.target.value.length > 0) {
-                              setShowGameDropdown(true);
-                              setGameSearchTerm(e.target.value);
-                              searchGames(e.target.value);
-                            } else {
-                              setShowGameDropdown(false);
-                            }
-                          }}
-                          onFocus={() => {
-                            if ((editingTournament?.game || '').length > 0) {
-                              setShowGameDropdown(true);
-                              setGameSearchTerm(editingTournament?.game || '');
-                              searchGames(editingTournament?.game || '');
-                            }
-                          }}
-                          onBlur={() => setTimeout(() => setShowGameDropdown(false), 300)}
-                          className="pr-10"
-                        />
-                        <svg className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                      </div>
-                      {showGameDropdown && config?.gameOptions && (editingTournament?.game || '').length > 0 && (
-                        <div className="absolute z-50 w-full mt-2 bg-card border-2 border-primary/20 rounded-xl shadow-2xl overflow-hidden backdrop-blur-sm">
-                          <div className="max-h-64 overflow-y-auto custom-scrollbar">
-                            {searchingGames ? (
-                              <div className="px-4 py-8 text-center">
-                                <div className="text-muted-foreground text-sm">Searching games...</div>
-                              </div>
-                            ) : gameSearchResults.length > 0 ? (
-                              gameSearchResults.map((game: string, index: number) => (
-                                <div
-                                  key={index}
-                                  className="group px-4 py-3 cursor-pointer hover:bg-primary/10 transition-all duration-200 border-b border-border/50 last:border-0 flex items-center gap-3"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                    setEditingTournament({ ...editingTournament, game });
-                                    setShowGameDropdown(false);
-                                  }}
-                                >
-                                  <div className="w-2 h-2 rounded-full bg-primary/50 group-hover:bg-primary group-hover:scale-150 transition-all duration-200"></div>
-                                  <span className="text-white font-medium group-hover:text-primary transition-colors">{game}</span>
-                                </div>
-                              ))
-                            ) : (
-                              <div className="px-4 py-8 text-center">
-                                <div className="text-muted-foreground text-sm mb-1">No games found</div>
-                                <div className="text-xs text-muted-foreground/70">Try a different search term</div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
+                      <Select 
+                        value={editingTournament?.game || ''} 
+                        onValueChange={(value) => setEditingTournament({ ...(editingTournament || {}), game: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select game" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[300px]">
+                          {config?.gameOptions && Array.isArray(config.gameOptions) && config.gameOptions.length > 0 ? (
+                            [...config.gameOptions].sort((a: string, b: string) => a.localeCompare(b)).map((game: string) => (
+                              <SelectItem key={game} value={game}>{game}</SelectItem>
+                            ))
+                          ) : (
+                            <div className="px-4 py-2 text-sm text-muted-foreground">No games available</div>
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Host</label>
@@ -722,37 +662,138 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="text-sm text-muted-foreground">Date Display</label>
-                      <Input
-                        placeholder="e.g., Tonight, Tomorrow..."
-                        value={editingTournament?.date || ''}
-                        onChange={(e) => setEditingTournament({ ...editingTournament, date: e.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Full Date</label>
                       <Input
                         placeholder="Select date..."
                         type="date"
                         value={editingTournament?.fullDate || ''}
-                        onChange={(e) => setEditingTournament({ ...editingTournament, fullDate: e.target.value })}
+                        onChange={(e) => {
+                          const newFullDate = e.target.value;
+                          const autoDate = getDateDisplay(newFullDate);
+                          setEditingTournament({ 
+                            ...editingTournament, 
+                            fullDate: newFullDate,
+                            date: autoDate 
+                          });
+                        }}
                       />
+                      {editingTournament?.fullDate && (
+                        <p className="text-xs text-muted-foreground">
+                          Display: <span className="text-primary font-medium">{editingTournament?.date}</span>
+                        </p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Time</label>
-                      <Input
-                        placeholder="e.g., 8:00 PM EAT..."
-                        value={editingTournament?.time || ''}
-                        onChange={(e) => setEditingTournament({ ...editingTournament, time: e.target.value })}
-                      />
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min="1"
+                          max="12"
+                          placeholder="HH"
+                          className="w-20"
+                          value={editingTournament?.time ? editingTournament.time.split(':')[0] : ''}
+                          onChange={(e) => {
+                            const hour = e.target.value;
+                            const currentTime = editingTournament?.time || ':00 PM EAT';
+                            const parts = currentTime.split(':');
+                            const minuteAndPeriod = parts[1] || '00 PM EAT';
+                            setEditingTournament({ ...editingTournament, time: `${hour}:${minuteAndPeriod}` });
+                          }}
+                        />
+                        <span className="text-muted-foreground">:</span>
+                        <Input
+                          type="number"
+                          min="0"
+                          max="59"
+                          placeholder="MM"
+                          className="w-20"
+                          value={editingTournament?.time ? editingTournament.time.split(':')[1]?.split(' ')[0] : ''}
+                          onChange={(e) => {
+                            const minute = e.target.value.padStart(2, '0');
+                            const currentTime = editingTournament?.time || '8:00 PM EAT';
+                            const hour = currentTime.split(':')[0];
+                            const period = currentTime.includes('AM') ? 'AM' : 'PM';
+                            const timezone = currentTime.split(' ')[2] || 'EAT';
+                            setEditingTournament({ ...editingTournament, time: `${hour}:${minute} ${period} ${timezone}` });
+                          }}
+                        />
+                        <Select
+                          value={editingTournament?.time?.includes('AM') ? 'AM' : 'PM'}
+                          onValueChange={(value) => {
+                            const currentTime = editingTournament?.time || '8:00 PM EAT';
+                            const [timePart] = currentTime.split(' ');
+                            const timezone = currentTime.split(' ')[2] || 'EAT';
+                            setEditingTournament({ ...editingTournament, time: `${timePart} ${value} ${timezone}` });
+                          }}
+                        >
+                          <SelectTrigger className="w-24">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="AM">AM</SelectItem>
+                            <SelectItem value="PM">PM</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={editingTournament?.time?.split(' ')[2] || 'EAT'}
+                          onValueChange={(value) => {
+                            const currentTime = editingTournament?.time || '8:00 PM EAT';
+                            const timeAndPeriod = currentTime.split(' ').slice(0, 2).join(' ');
+                            setEditingTournament({ ...editingTournament, time: `${timeAndPeriod} ${value}` });
+                          }}
+                        >
+                          <SelectTrigger className="w-28">
+                            <SelectValue placeholder="Timezone" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="EAT">EAT</SelectItem>
+                            <SelectItem value="UTC">UTC</SelectItem>
+                            <SelectItem value="GMT">GMT</SelectItem>
+                            <SelectItem value="EST">EST</SelectItem>
+                            <SelectItem value="PST">PST</SelectItem>
+                            <SelectItem value="CST">CST</SelectItem>
+                            <SelectItem value="MST">MST</SelectItem>
+                            <SelectItem value="IST">IST</SelectItem>
+                            <SelectItem value="JST">JST</SelectItem>
+                            <SelectItem value="AEST">AEST</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Duration</label>
-                      <Input
-                        placeholder="e.g., 4 hours..."
-                        value={editingTournament?.duration || ''}
-                        onChange={(e) => setEditingTournament({ ...editingTournament, duration: e.target.value })}
-                      />
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="0"
+                          className="w-24"
+                          value={editingTournament?.duration ? editingTournament.duration.split(' ')[0] : ''}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            const currentDuration = editingTournament?.duration || '0 hours';
+                            const unit = currentDuration.split(' ')[1] || 'hours';
+                            setEditingTournament({ ...editingTournament, duration: `${value} ${unit}` });
+                          }}
+                        />
+                        <Select
+                          value={editingTournament?.duration?.split(' ')[1] || 'hours'}
+                          onValueChange={(value) => {
+                            const currentDuration = editingTournament?.duration || '0 hours';
+                            const number = currentDuration.split(' ')[0] || '0';
+                            setEditingTournament({ ...editingTournament, duration: `${number} ${value}` });
+                          }}
+                        >
+                          <SelectTrigger className="w-32">
+                            <SelectValue placeholder="Unit" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="minutes">Minutes</SelectItem>
+                            <SelectItem value="hours">Hours</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-sm text-muted-foreground">Format</label>
