@@ -368,7 +368,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
 
             <Button
               type="submit"
-              className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
+              className="w-full bg-primary text-primary-foreground hover:opacity-90"
               disabled={loading}
             >
               {loading ? 'Loading...' : mode === 'signin' ? 'Sign In' : 'Create Account'}

@@ -10,14 +10,14 @@
   --card-foreground: #ffffff;
   --popover: #1a1a1a;
   --popover-foreground: #ffffff;
-  --primary: #ff1744;
-  --primary-foreground: #ffffff;
-  --secondary: #c62828;
+  --primary: #0ad7a6;
+  --primary-foreground: #000000;
+  --secondary: #800000;
   --secondary-foreground: #ffffff;
   --muted: #2a2a2a;
   --muted-foreground: #a0a0a0;
-  --accent: #ff5722;
-  --accent-foreground: #ffffff;
+  --accent: #0ad7a6;
+  --accent-foreground: #000000;
   --destructive: #d32f2f;
   --destructive-foreground: #ffffff;
   --border: rgba(255, 255, 255, 0.1);
@@ -25,11 +25,6 @@
   --input-background: rgba(255, 255, 255, 0.05);
   --switch-background: #2a2a2a;
   --ring: var(--primary);
-  
-  /* Logo-inspired gradients */
-  --gradient-primary: linear-gradient(135deg, #ff1744 0%, #c62828 50%, #b71c1c 100%);
-  --gradient-secondary: linear-gradient(45deg, #ff1744 0%, #ff5722 100%);
-  --gradient-accent: linear-gradient(90deg, #c62828 0%, #ff1744 100%);
   
   /* Typography weights */
   --font-weight-black: 900;
@@ -42,18 +37,18 @@
   --radius: 1rem;
   
   /* Chart colors with logo theme */
-  --chart-1: #ff1744;
-  --chart-2: #c62828;
-  --chart-3: #ff5722;
-  --chart-4: #d32f2f;
-  --chart-5: #f57c00;
+  --chart-1: #0ad7a6;
+  --chart-2: #800000;
+  --chart-3: #08b88c;
+  --chart-4: #a00000;
+  --chart-5: #069976;
   
   /* Sidebar colors */
   --sidebar: rgba(26, 26, 26, 0.95);
   --sidebar-foreground: #ffffff;
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 23, 68, 0.1);
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: rgba(10, 215, 166, 0.1);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: rgba(255, 255, 255, 0.1);
   --sidebar-ring: var(--ring);
@@ -132,10 +127,7 @@
       font-size: 4rem;
       font-weight: var(--font-weight-black);
       line-height: 1.1;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      color: var(--primary);
     }
 
     h2 {
@@ -185,28 +177,15 @@
 /* Custom utility classes */
 @layer utilities {
   .gradient-text {
-    background: var(--gradient-primary);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: var(--primary);
   }
   
   .gradient-border {
-    border: 2px solid transparent;
-    background: linear-gradient(var(--background), var(--background)) padding-box,
-                var(--gradient-primary) border-box;
+    border: 2px solid var(--primary);
   }
   
   .glow {
-    box-shadow: 0 0 20px rgba(255, 23, 68, 0.4);
-  }
-  
-  .glow-accent {
-    box-shadow: 0 0 20px rgba(255, 87, 34, 0.4);
-  }
-  
-  .glow-secondary {
-    box-shadow: 0 0 20px rgba(198, 40, 40, 0.4);
+    box-shadow: 0 0 20px rgba(10, 215, 166, 0.4);
   }
 }
 

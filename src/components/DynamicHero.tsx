@@ -89,12 +89,12 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
 
   // Card positioning and styling variants for up to 6 cards
   const cardVariants = [
-    { position: 'lg:top-0 lg:right-0', rotate: 'lg:rotate-3', gradient: 'from-primary/10 to-secondary/10', border: 'border-primary/20', glow: 'glow' },
-    { position: 'lg:top-32 lg:left-0', rotate: 'lg:-rotate-6', gradient: 'from-accent/10 to-primary/10', border: 'border-accent/20', glow: 'glow-accent' },
-    { position: 'lg:bottom-20 lg:right-8', rotate: 'lg:rotate-6', gradient: 'from-secondary/10 to-accent/10', border: 'border-secondary/20', glow: 'glow-secondary' },
-    { position: 'lg:top-64 lg:right-16', rotate: 'lg:-rotate-3', gradient: 'from-primary/10 to-accent/10', border: 'border-primary/20', glow: 'glow' },
-    { position: 'lg:bottom-32 lg:left-8', rotate: 'lg:rotate-4', gradient: 'from-secondary/10 to-primary/10', border: 'border-secondary/20', glow: 'glow-secondary' },
-    { position: 'lg:top-16 lg:left-16', rotate: 'lg:-rotate-2', gradient: 'from-accent/10 to-secondary/10', border: 'border-accent/20', glow: 'glow-accent' },
+    { position: 'lg:top-0 lg:right-0', rotate: 'lg:rotate-3', bgColor: 'bg-primary/10', border: 'border-primary/20', glow: 'glow' },
+    { position: 'lg:top-32 lg:left-0', rotate: 'lg:-rotate-6', bgColor: 'bg-accent/10', border: 'border-accent/20', glow: 'glow-accent' },
+    { position: 'lg:bottom-20 lg:right-8', rotate: 'lg:rotate-6', bgColor: 'bg-secondary/10', border: 'border-secondary/20', glow: 'glow-secondary' },
+    { position: 'lg:top-64 lg:right-16', rotate: 'lg:-rotate-3', bgColor: 'bg-primary/10', border: 'border-primary/20', glow: 'glow' },
+    { position: 'lg:bottom-32 lg:left-8', rotate: 'lg:rotate-4', bgColor: 'bg-secondary/10', border: 'border-secondary/20', glow: 'glow-secondary' },
+    { position: 'lg:top-16 lg:left-16', rotate: 'lg:-rotate-2', bgColor: 'bg-accent/10', border: 'border-accent/20', glow: 'glow-accent' },
   ];
 
   const formatTournamentDate = (dateString: string) => {
@@ -122,34 +122,48 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
         <div className="grid lg:grid-cols-12 gap-8 items-center">
           {/* Main content */}
           <div className="lg:col-span-7 space-y-8">
-            <div className="space-y-4">
-              <div className="flex items-center gap-3 text-primary text-sm font-medium">
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-                NAIROBI'S GAMING COMMUNITY
-                <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
+            <div className="space-y-6 md:space-y-8">
+              {/* Main heading with experimental layout */}
+              <div className="space-y-1 md:space-y-2">
+                <h1 className="text-5xl sm:text-6xl md:text-6xl lg:text-7xl font-black leading-none tracking-tight">
+                  <span className="block text-white">LEVEL</span>
+                  <span className="block text-primary">UP</span>
+                  <span className="block text-white">YOUR</span>
+                  <span className="block text-secondary">GAME</span>
+                </h1>
+                
+                {/* Decorative line */}
+                <div className="flex items-center gap-2 md:gap-3 py-2">
+                  <div className="h-0.5 md:h-1 w-12 md:w-16 bg-primary"></div>
+                  <div className="h-0.5 md:h-1 w-6 md:w-8 bg-secondary"></div>
+                  <div className="h-0.5 md:h-1 w-3 md:w-4 bg-primary"></div>
+                </div>
               </div>
               
-              <h1 className="text-6xl lg:text-8xl font-black leading-none">
-                NAIROBI
-                <br />
-                <span className="text-primary">GAMERS</span>
-                <br />
-                UNITE
-                <br />
-                <span className="text-secondary">HERE</span>
-              </h1>
+              {/* Description with gaming context */}
+              <div className="space-y-2 md:space-y-3 max-w-xl">
+                <p className="text-lg sm:text-xl text-white leading-relaxed">
+                  Join Kenya's most competitive gaming community.
+                </p>
+                <p className="text-base sm:text-lg text-muted-foreground leading-relaxed">
+                  From Westlands to Karen, discover tournaments, compete in scrims, 
+                  attend watch parties, and connect with the best gamers across Nairobi.
+                </p>
+              </div>
               
-              <p className="text-xl text-muted-foreground max-w-lg leading-relaxed">
-                Join Nairobi's most competitive gaming community. From Westlands to Karen, 
-                discover tournaments, scrims, watch parties, and connect with fellow gamers 
-                across the city.
-              </p>
+              {/* Quick stats inline */}
+              <div className="flex flex-wrap items-center gap-4 md:gap-6 pt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-primary rounded-full animate-pulse flex-shrink-0"></div>
+                  <span className="text-xs sm:text-sm text-muted-foreground">FIFA • VALORANT • COD • CS:GO</span>
+                </div>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4">
               <Button 
                 size="lg" 
-                className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-8 glow"
+                className="bg-primary text-primary-foreground hover:opacity-90 rounded-full px-8 glow"
                 onClick={() => onNavigate('tournaments')}
               >
                 <Calendar className="w-5 h-5 mr-2" />
@@ -161,22 +175,6 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
                   Join Community
                 </a>
               </Button>
-            </div>
-
-            {/* Live stats */}
-            <div className="flex items-center gap-8 pt-4">
-              <div className="text-center">
-                <div className="text-2xl font-black gradient-text">18</div>
-                <div className="text-xs text-muted-foreground">Tournaments This Week</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black gradient-text">6</div>
-                <div className="text-xs text-muted-foreground">Live Matches</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-black gradient-text">2.4K</div>
-                <div className="text-xs text-muted-foreground">Nairobi Gamers</div>
-              </div>
             </div>
           </div>
 
@@ -196,7 +194,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
               {/* Empty State */}
               {!loading && upcomingTournaments.length === 0 && (
                 <div className="flex items-center justify-center h-full min-h-[300px]">
-                  <Card className="w-full max-w-sm bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+                  <Card className="w-full max-w-sm bg-primary/10 border-primary/20">
                     <CardContent className="p-8 text-center">
                       <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
                       <h4 className="font-bold text-white mb-2">No Upcoming Tournaments</h4>
@@ -227,7 +225,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
                       return (
                         <Card 
                           key={tournament.id}
-                          className={`bg-gradient-to-br ${variant.gradient} ${variant.border} ${variant.glow} hover:scale-105 transition-all duration-500`}
+                          className={`${variant.bgColor} ${variant.border} ${variant.glow} hover:scale-105 transition-all duration-500`}
                           style={{ animationDelay: `${index * 0.1}s` }}
                         >
                           <CardContent className="p-6">
@@ -248,7 +246,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
 
                             {/* Tournament Header */}
                             <div className="flex items-center gap-3 mb-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                                 {isLive ? (
                                   <Trophy className="w-6 h-6 text-white" />
                                 ) : (
@@ -301,7 +299,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
                       return (
                         <Card 
                           key={tournament.id}
-                          className={`absolute ${variant.position} w-72 bg-gradient-to-br ${variant.gradient} ${variant.border} ${variant.glow} ${variant.rotate} hover:rotate-0 transition-transform duration-500`}
+                          className={`absolute ${variant.position} w-72 ${variant.bgColor} ${variant.border} ${variant.glow} ${variant.rotate} hover:rotate-0 transition-transform duration-500`}
                         >
                           <CardContent className="p-6">
                             {/* Live indicator or Date */}
@@ -321,7 +319,7 @@ export function DynamicHero({ onNavigate }: DynamicHeroProps) {
 
                             {/* Tournament Header */}
                             <div className="flex items-center gap-3 mb-4">
-                              <div className="w-12 h-12 bg-gradient-to-br from-primary to-secondary rounded-full flex items-center justify-center flex-shrink-0">
+                              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
                                 {isLive ? (
                                   <Trophy className="w-6 h-6 text-white" />
                                 ) : (

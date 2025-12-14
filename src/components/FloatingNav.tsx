@@ -121,8 +121,11 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
 
                   <Button 
                     size="sm"
-                    className="bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-full px-5 text-white"
-                    onClick={() => onOpenAuth('signup')}
+                    className="bg-primary text-primary-foreground hover:opacity-90 rounded-full px-6"
+                    onClick={() => {
+                      onOpenAuth('signup');
+                      setMobileMenuOpen(false);
+                    }}
                   >
                     Join Now
                   </Button>
@@ -230,7 +233,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                     </Button>
 
                     <Button 
-                      className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90 rounded-xl"
+                      className="w-full bg-primary text-primary-foreground hover:opacity-90 rounded-xl"
                       onClick={() => {
                         onOpenAuth('signup');
                         setMobileMenuOpen(false);

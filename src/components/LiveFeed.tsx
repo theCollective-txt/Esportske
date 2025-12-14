@@ -174,7 +174,7 @@ export function LiveFeed() {
                   </div>
                   
                   {item.isLive && (
-                    <Button size="sm" className="bg-gradient-to-r from-primary to-secondary">
+                    <Button size="sm" className="bg-primary text-primary-foreground">
                       Join Live
                     </Button>
                   )}

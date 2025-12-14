@@ -27,7 +27,7 @@ export function HomePage({ onNavigate, user, accessToken, onOpenAuthModal, onRef
       
       {/* Call to action section */}
       <section className="py-24 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-secondary/10 to-accent/10"></div>
+        <div className="absolute inset-0 bg-secondary/5"></div>
         <div className="container mx-auto px-4 text-center relative z-10">
           <h2 className="text-5xl font-black mb-6">
             READY TO <span className="gradient-text">COMPETE</span> IN NAIROBI?
@@ -41,7 +41,7 @@ export function HomePage({ onNavigate, user, accessToken, onOpenAuthModal, onRef
               href="https://discord.gg/pyv8XukVu2" 
               target="_blank" 
               rel="noopener noreferrer"
-              className="bg-gradient-to-r from-primary via-secondary to-accent text-white px-12 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform glow inline-block"
+              className="bg-primary text-white px-12 py-4 rounded-full font-bold text-lg hover:scale-105 transition-transform glow inline-block"
             >
               Join ESPORTS-KE
             </a>
@@ -51,22 +51,6 @@ export function HomePage({ onNavigate, user, accessToken, onOpenAuthModal, onRef
             >
               Find Tournaments
             </button>
-          </div>
-          
-          {/* Quick stats */}
-          <div className="flex items-center justify-center gap-12 mt-12 text-center">
-            <div>
-              <div className="text-3xl font-black gradient-text">63</div>
-              <div className="text-sm text-muted-foreground">Tournaments This Month</div>
-            </div>
-            <div>
-              <div className="text-3xl font-black gradient-text">2.4K</div>
-              <div className="text-sm text-muted-foreground">Nairobi Gamers</div>
-            </div>
-            <div>
-              <div className="text-3xl font-black gradient-text">18</div>
-              <div className="text-sm text-muted-foreground">Gaming Venues</div>
-            </div>
           </div>
         </div>
       </section>
