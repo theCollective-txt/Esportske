@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X, Shield } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import logoImage from 'figma:asset/7066abf5535bce8ca18393d6d93fa8b7b995eb82.png';
+import logoImage from 'figma:asset/e1f091e357b15fe7119ceb204dc5d0faceb28dc9.png';
 
 interface FloatingNavProps {
   onNavigate: (page: string) => void;
@@ -32,8 +32,12 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               onClick={() => handleNavigate('home')}
               className="hover:opacity-80 transition-opacity"
             >
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden">
-                <img src={logoImage} alt="ESPORTS-KE" className="w-full h-full object-cover" />
+              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-sm overflow-hidden">
+                <img 
+                  src={logoImage} 
+                  alt="ESPORTS-KE" 
+                  className="w-full h-full object-contain" 
+                />
               </div>
             </button>
 
@@ -70,7 +74,7 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
 
             {/* Right side actions - Desktop */}
             <div className="hidden lg:flex items-center gap-2 xl:gap-3">
-              {/* Search bar */}
+              {/* Search bar removed */}
 
               {user ? (
                 <>
@@ -140,15 +144,6 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
           {/* Mobile Menu Dropdown */}
           {mobileMenuOpen && (
             <div className="lg:hidden mt-4 pt-4 border-t border-border space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-              {/* Mobile Search */}
-              <div className="flex items-center gap-2 bg-muted/50 rounded-full px-4 py-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
-                <Input 
-                  placeholder="Search tournaments..."
-                  className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0 placeholder:text-muted-foreground"
-                />
-              </div>
-
               {/* Mobile Navigation */}
               <div className="space-y-1">
                 <button

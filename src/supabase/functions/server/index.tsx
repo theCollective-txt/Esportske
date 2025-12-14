@@ -110,10 +110,28 @@ const checkAdmin = async (accessToken: string) => {
 // Sign up endpoint
 app.post('/make-server-8711c492/signup', async (c) => {
   try {
-    const { email, password, name, location, favoriteGame } = await c.req.json();
+    const { email, password, name, birthday, location, favoriteGame } = await c.req.json();
 
     if (!email || !password || !name) {
       return c.json({ error: 'Email, password, and name are required' }, 400);
+    }
+
+    if (!birthday) {
+      return c.json({ error: 'Date of birth is required' }, 400);
+    }
+
+    // Validate age (must be 18 or older)
+    const birthDate = new Date(birthday);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    if (age < 18) {
+      return c.json({ error: 'You must be 18 years or older to register' }, 400);
     }
 
     const supabase = getSupabaseClient();
@@ -124,6 +142,7 @@ app.post('/make-server-8711c492/signup', async (c) => {
       password,
       user_metadata: { 
         name,
+        birthday,
         location: location || '',
         favoriteGame: favoriteGame || '',
         joinedAt: new Date().toISOString(),
@@ -142,6 +161,7 @@ app.post('/make-server-8711c492/signup', async (c) => {
       id: data.user.id,
       email,
       name,
+      birthday,
       location: location || '',
       favoriteGame: favoriteGame || '',
       joinedAt: new Date().toISOString(),

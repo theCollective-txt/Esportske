@@ -178,7 +178,7 @@ export function FeaturedEvents({ onNavigate, user, accessToken, onOpenAuthModal,
                         className="w-full bg-gradient-to-r from-primary to-secondary hover:opacity-90"
                         onClick={() => setSelectedTournament(event)}
                       >
-                        {event.isLive ? 'Watch Now' : 'Register'}
+                        View Info
                       </Button>
                     </div>
                   </CardContent>

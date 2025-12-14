@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Mail, Lock, User, MapPin } from 'lucide-react';
+import { X, Mail, Lock, User, MapPin, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -18,6 +18,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [birthday, setBirthday] = useState('');
   const [location, setLocation] = useState('');
   const [favoriteGame, setFavoriteGame] = useState('');
   const [otherLocation, setOtherLocation] = useState('');
@@ -72,6 +73,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
       setEmail('');
       setPassword('');
       setName('');
+      setBirthday('');
       setLocation('');
       setFavoriteGame('');
       setOtherLocation('');
@@ -86,8 +88,26 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
     setError('');
 
     try {
+      // Validate age (must be 18 or older)
+      if (birthday) {
+        const birthDate = new Date(birthday);
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+        
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+          age--;
+        }
+        
+        if (age < 18) {
+          setError('You must be 18 years or older to register');
+          setLoading(false);
+          return;
+        }
+      }
+
       console.log('Starting signup process...');
-      console.log('Signup data:', { email, name, location, favoriteGame });
+      console.log('Signup data:', { email, name, birthday, location, favoriteGame });
       
       // Call our server endpoint to create user
       const response = await fetch(
@@ -102,6 +122,7 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
             email,
             password,
             name,
+            birthday,
             location: location === 'Other' ? otherLocation : location,
             favoriteGame: favoriteGame === 'Other' ? otherFavoriteGame : favoriteGame,
           }),
@@ -215,6 +236,24 @@ export function AuthModal({ isOpen, onClose, onAuthSuccess, initialMode = 'signi
                     className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
                   />
                 </div>
+              </div>
+            )}
+
+            {mode === 'signup' && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Date of Birth</label>
+                <div className="flex items-center gap-2 bg-muted/50 rounded-lg px-3 py-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <Input
+                    type="date"
+                    value={birthday}
+                    onChange={(e) => setBirthday(e.target.value)}
+                    required
+                    max={new Date(new Date().setFullYear(new Date().getFullYear() - 18)).toISOString().split('T')[0]}
+                    className="border-0 bg-transparent p-0 h-auto focus-visible:ring-0"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">You must be 18 or older to register</p>
               </div>
             )}
 
