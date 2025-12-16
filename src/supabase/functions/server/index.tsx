@@ -110,28 +110,10 @@ const checkAdmin = async (accessToken: string) => {
 // Sign up endpoint
 app.post('/make-server-8711c492/signup', async (c) => {
   try {
-    const { email, password, name, birthday, location, favoriteGame } = await c.req.json();
+    const { email, password, name, location, favoriteGame } = await c.req.json();
 
     if (!email || !password || !name) {
       return c.json({ error: 'Email, password, and name are required' }, 400);
-    }
-
-    if (!birthday) {
-      return c.json({ error: 'Date of birth is required' }, 400);
-    }
-
-    // Validate age (must be 18 or older)
-    const birthDate = new Date(birthday);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    
-    if (age < 18) {
-      return c.json({ error: 'You must be 18 years or older to register' }, 400);
     }
 
     const supabase = getSupabaseClient();
@@ -142,7 +124,6 @@ app.post('/make-server-8711c492/signup', async (c) => {
       password,
       user_metadata: { 
         name,
-        birthday,
         location: location || '',
         favoriteGame: favoriteGame || '',
         joinedAt: new Date().toISOString(),
@@ -161,7 +142,6 @@ app.post('/make-server-8711c492/signup', async (c) => {
       id: data.user.id,
       email,
       name,
-      birthday,
       location: location || '',
       favoriteGame: favoriteGame || '',
       joinedAt: new Date().toISOString(),
@@ -251,7 +231,7 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
       return c.json({ error: 'Unauthorized - invalid access token' }, 401);
     }
 
-    const { tournamentId, tournamentTitle } = await c.req.json();
+    const { tournamentId, tournamentTitle, gamertag } = await c.req.json();
 
     if (!tournamentId || !tournamentTitle) {
       return c.json({ error: 'Tournament ID and title are required' }, 400);
@@ -279,11 +259,18 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
     }
 
     // Add tournament registration
-    registeredTournaments.push({
+    const registration: any = {
       tournamentId,
       tournamentTitle,
       registeredAt: new Date().toISOString(),
-    });
+    };
+    
+    // Include gamertag if provided
+    if (gamertag) {
+      registration.gamertag = gamertag;
+    }
+    
+    registeredTournaments.push(registration);
 
     // Update registration history
     tournamentHistory.count += 1;
@@ -299,14 +286,21 @@ app.post('/make-server-8711c492/register-tournament', async (c) => {
 
     // Store tournament registration (for tournament participant list)
     const registrationKey = `tournament:${tournamentId}:participant:${user.id}`;
-    await kv.set(registrationKey, {
+    const participantData: any = {
       userId: user.id,
       userName: profile.name,
       userEmail: profile.email,
       location: profile.location,
       favoriteGame: profile.favoriteGame,
       registeredAt: new Date().toISOString(),
-    });
+    };
+    
+    // Include gamertag in participant data if provided
+    if (gamertag) {
+      participantData.gamertag = gamertag;
+    }
+    
+    await kv.set(registrationKey, participantData);
 
     return c.json({ 
       success: true,
@@ -766,9 +760,453 @@ app.delete('/make-server-8711c492/admin/tournament/:tournamentId/participant/:us
   }
 });
 
+// Get leaderboard data (public)
+app.get('/make-server-8711c492/leaderboard', async (c) => {
+  try {
+    const game = c.req.query('game');
+    
+    if (!game) {
+      return c.json({ error: 'Game parameter is required' }, 400);
+    }
+
+    console.log('Fetching leaderboard for game:', game);
+    
+    // Get all users
+    const users = await kv.getByPrefix('user:');
+    console.log('Total users found:', users?.length || 0);
+    
+    if (!users || users.length === 0) {
+      return c.json({ leaderboard: [] });
+    }
+
+    // Extract game stats and filter out users with 0 points
+    const leaderboardData = users
+      .map((user: any) => {
+        const gameStats = user.gameStats?.[game] || { wins: 0, points: 0 };
+        return {
+          userId: user.id,
+          player: user.name,
+          email: user.email,
+          wins: gameStats.wins || 0,
+          points: gameStats.points || 0,
+          previousRank: gameStats.previousRank || null,
+        };
+      })
+      .filter((player: any) => player.points > 0) // Filter out players with 0 points
+      .sort((a: any, b: any) => b.points - a.points) // Sort by points descending
+      .map((player: any, index: number) => {
+        // Calculate trend based on previous rank
+        let trend = 'same';
+        if (player.previousRank !== null) {
+          const currentRank = index + 1;
+          if (currentRank < player.previousRank) {
+            trend = 'up';
+          } else if (currentRank > player.previousRank) {
+            trend = 'down';
+          }
+        }
+        
+        return {
+          rank: index + 1,
+          player: player.player,
+          wins: player.wins,
+          points: player.points,
+          trend,
+        };
+      });
+
+    console.log('Leaderboard data:', leaderboardData.length, 'players with points > 0');
+    
+    return c.json({ leaderboard: leaderboardData });
+  } catch (error: any) {
+    console.error('Error fetching leaderboard:', error);
+    return c.json({ error: error.message || 'Failed to fetch leaderboard' }, 500);
+  }
+});
+
+// Get top games by tournament participation (public)
+app.get('/make-server-8711c492/top-games', async (c) => {
+  try {
+    console.log('Fetching top games by tournament participation...');
+    
+    // Get all tournaments
+    const tournaments = await kv.getByPrefix('tournament:data:');
+    console.log('Total tournaments found:', tournaments?.length || 0);
+    
+    if (!tournaments || tournaments.length === 0) {
+      return c.json({ games: [] });
+    }
+
+    // Count participants per game
+    const gameParticipantCount: { [key: string]: Set<string> } = {};
+    
+    // Get all tournament participants
+    for (const tournament of tournaments) {
+      const game = tournament.game;
+      if (!game) continue;
+      
+      // Initialize set for this game if it doesn't exist
+      if (!gameParticipantCount[game]) {
+        gameParticipantCount[game] = new Set();
+      }
+      
+      // Get participants for this tournament
+      const participants = await kv.getByPrefix(`tournament:${tournament.id}:participant:`);
+      
+      // Add each participant's userId to the set (sets automatically deduplicate)
+      if (participants && participants.length > 0) {
+        participants.forEach((participant: any) => {
+          if (participant.userId) {
+            gameParticipantCount[game].add(participant.userId);
+          }
+        });
+      }
+    }
+
+    // Convert to array and sort by participant count
+    const topGames = Object.entries(gameParticipantCount)
+      .map(([game, participantSet]) => ({
+        game,
+        participantCount: participantSet.size,
+      }))
+      .filter(item => item.participantCount > 0) // Only games with at least 1 participant
+      .sort((a, b) => b.participantCount - a.participantCount) // Sort by count descending
+      .map(item => item.game);
+
+    console.log('Top games by participation:', topGames);
+    
+    return c.json({ games: topGames });
+  } catch (error: any) {
+    console.error('Error fetching top games:', error);
+    return c.json({ error: error.message || 'Failed to fetch top games' }, 500);
+  }
+});
+
+// Update player game stats (admin only)
+app.patch('/make-server-8711c492/admin/users/:userId/game-stats', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const userId = c.req.param('userId');
+    const { game, wins, points } = await c.req.json();
+
+    if (!game || typeof wins !== 'number' || typeof points !== 'number') {
+      return c.json({ error: 'Game, wins, and points are required' }, 400);
+    }
+
+    const profile = await kv.get(`user:${userId}`);
+    if (!profile) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    // Get current game stats to track rank changes
+    const currentGameStats = profile.gameStats?.[game] || {};
+    
+    // Initialize gameStats if it doesn't exist
+    const gameStats = profile.gameStats || {};
+    
+    // Update stats for the specified game
+    gameStats[game] = {
+      wins,
+      points,
+      previousRank: currentGameStats.rank || null,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(`user:${userId}`, {
+      ...profile,
+      gameStats,
+    });
+
+    return c.json({ success: true, message: 'Game stats updated' });
+  } catch (error: any) {
+    console.error('Error updating game stats:', error);
+    return c.json({ error: error.message || 'Failed to update game stats' }, 500);
+  }
+});
+
+// Update all leaderboard ranks (admin only) - should be called after updating stats
+app.post('/make-server-8711c492/admin/update-leaderboard-ranks', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const { game } = await c.req.json();
+    
+    if (!game) {
+      return c.json({ error: 'Game parameter is required' }, 400);
+    }
+
+    // Get all users and calculate ranks
+    const users = await kv.getByPrefix('user:');
+    
+    if (!users || users.length === 0) {
+      return c.json({ success: true, message: 'No users found' });
+    }
+
+    const sortedUsers = users
+      .map((user: any) => ({
+        userId: user.id,
+        points: user.gameStats?.[game]?.points || 0,
+      }))
+      .filter((u: any) => u.points > 0)
+      .sort((a: any, b: any) => b.points - a.points);
+
+    // Update previousRank for each user
+    for (let i = 0; i < sortedUsers.length; i++) {
+      const user = sortedUsers[i];
+      const profile = await kv.get(`user:${user.userId}`);
+      
+      if (profile && profile.gameStats && profile.gameStats[game]) {
+        profile.gameStats[game].rank = i + 1;
+        await kv.set(`user:${user.userId}`, profile);
+      }
+    }
+
+    return c.json({ success: true, message: 'Leaderboard ranks updated' });
+  } catch (error: any) {
+    console.error('Error updating leaderboard ranks:', error);
+    return c.json({ error: error.message || 'Failed to update ranks' }, 500);
+  }
+});
+
 // Health check
 app.get('/make-server-8711c492/health', (c) => {
   return c.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Admin: Get leaderboard with full user data
+app.get('/make-server-8711c492/admin/leaderboard/:game', async (c) => {
+  try {
+    // Verify admin access
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const supabase = getSupabaseClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    
+    if (!user || authError) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Check if user is admin
+    const userProfile = await kv.get(`user:${user.id}`);
+    if (!userProfile || userProfile.role !== 'admin') {
+      return c.json({ error: 'Admin access required' }, 403);
+    }
+
+    const game = c.req.param('game');
+    
+    if (!game) {
+      return c.json({ error: 'Game parameter is required' }, 400);
+    }
+
+    console.log('Admin fetching leaderboard for game:', game);
+    
+    // Get all users
+    const users = await kv.getByPrefix('user:');
+    console.log('Total users found:', users?.length || 0);
+    
+    if (!users || users.length === 0) {
+      return c.json({ leaderboard: [] });
+    }
+
+    // Extract game stats including all players (even with 0 points for admin view)
+    const leaderboardData = users
+      .map((user: any) => {
+        const gameStats = user.gameStats?.[game] || { wins: 0, points: 0 };
+        return {
+          userId: user.id,
+          player: user.name,
+          email: user.email,
+          wins: gameStats.wins || 0,
+          points: gameStats.points || 0,
+        };
+      })
+      .sort((a: any, b: any) => b.points - a.points); // Sort by points descending
+
+    console.log('Admin leaderboard data:', leaderboardData.length, 'total players');
+    
+    return c.json({ leaderboard: leaderboardData });
+  } catch (error: any) {
+    console.error('Error fetching admin leaderboard:', error);
+    return c.json({ error: error.message || 'Failed to fetch leaderboard' }, 500);
+  }
+});
+
+// Admin: Update player stats
+app.post('/make-server-8711c492/admin/update-player-stats', async (c) => {
+  try {
+    // Verify admin access
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const supabase = getSupabaseClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser(accessToken);
+    
+    if (!user || authError) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    // Check if user is admin
+    const userProfile = await kv.get(`user:${user.id}`);
+    if (!userProfile || userProfile.role !== 'admin') {
+      return c.json({ error: 'Admin access required' }, 403);
+    }
+
+    const { userId, game, points, wins } = await c.req.json();
+
+    if (!userId || !game || points === undefined || wins === undefined) {
+      return c.json({ error: 'userId, game, points, and wins are required' }, 400);
+    }
+
+    console.log('Admin updating player stats:', { userId, game, points, wins });
+
+    // Get user data
+    const targetUser = await kv.get(`user:${userId}`);
+    if (!targetUser) {
+      return c.json({ error: 'User not found' }, 404);
+    }
+
+    // Update game stats
+    const updatedUser = {
+      ...targetUser,
+      gameStats: {
+        ...targetUser.gameStats,
+        [game]: {
+          wins: parseInt(wins) || 0,
+          points: parseInt(points) || 0,
+        },
+      },
+    };
+
+    await kv.set(`user:${userId}`, updatedUser);
+
+    console.log('Player stats updated successfully');
+    
+    return c.json({ 
+      message: 'Player stats updated successfully',
+      stats: updatedUser.gameStats[game]
+    });
+  } catch (error: any) {
+    console.error('Error updating player stats:', error);
+    return c.json({ error: error.message || 'Failed to update player stats' }, 500);
+  }
+});
+
+// Get blog posts (public)
+app.get('/make-server-8711c492/blog-posts', async (c) => {
+  try {
+    console.log('Fetching blog posts...');
+    
+    const posts = await kv.getByPrefix('blog:post:');
+    console.log('Blog posts found:', posts?.length || 0);
+    
+    if (!posts || posts.length === 0) {
+      return c.json({ posts: [] });
+    }
+
+    // Sort by date (newest first)
+    const sortedPosts = posts.sort((a: any, b: any) => {
+      return new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime();
+    });
+    
+    return c.json({ posts: sortedPosts });
+  } catch (error: any) {
+    console.error('Error fetching blog posts:', error);
+    return c.json({ error: error.message || 'Failed to fetch blog posts' }, 500);
+  }
+});
+
+// Create blog post (admin only)
+app.post('/make-server-8711c492/admin/blog-posts', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const postData = await c.req.json();
+    
+    // Generate a unique ID
+    const postId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    const post = {
+      id: postId,
+      ...postData,
+      date: postData.date || new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    await kv.set(`blog:post:${postId}`, post);
+
+    return c.json({ success: true, post });
+  } catch (error: any) {
+    console.error('Error creating blog post:', error);
+    return c.json({ error: error.message || 'Failed to create blog post' }, 500);
+  }
+});
+
+// Update blog post (admin only)
+app.put('/make-server-8711c492/admin/blog-posts/:postId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const postId = c.req.param('postId');
+    const updates = await c.req.json();
+
+    const existingPost = await kv.get(`blog:post:${postId}`);
+    
+    if (!existingPost) {
+      return c.json({ error: 'Blog post not found' }, 404);
+    }
+
+    const updatedPost = {
+      ...existingPost,
+      ...updates,
+      id: postId,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await kv.set(`blog:post:${postId}`, updatedPost);
+
+    return c.json({ success: true, post: updatedPost });
+  } catch (error: any) {
+    console.error('Error updating blog post:', error);
+    return c.json({ error: error.message || 'Failed to update blog post' }, 500);
+  }
+});
+
+// Delete blog post (admin only)
+app.delete('/make-server-8711c492/admin/blog-posts/:postId', async (c) => {
+  try {
+    const accessToken = c.req.header('Authorization')?.split(' ')[1];
+    const { isAdmin } = await checkAdmin(accessToken || '');
+
+    if (!isAdmin) {
+      return c.json({ error: 'Forbidden - Admin access required' }, 403);
+    }
+
+    const postId = c.req.param('postId');
+    await kv.del(`blog:post:${postId}`);
+
+    return c.json({ success: true, message: 'Blog post deleted' });
+  } catch (error: any) {
+    console.error('Error deleting blog post:', error);
+    return c.json({ error: error.message || 'Failed to delete blog post' }, 500);
+  }
 });
 
 Deno.serve(app.fetch);

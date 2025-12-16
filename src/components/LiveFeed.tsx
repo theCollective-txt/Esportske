@@ -1,194 +1,254 @@
-import { Heart, MessageCircle, Share2, Calendar, Users, Gamepad2, MoreHorizontal, Clock } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Calendar, Users, Gamepad2, MoreHorizontal, Clock, Trophy, TrendingUp, Award } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { ImageWithFallback } from './figma/ImageWithFallback';
+import { useState, useEffect } from 'react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 export function LiveFeed() {
-  const feedItems = [
-    {
-      id: 1,
-      type: 'tournament_found',
-      user: { name: 'Brian Kimani', handle: '@brian_fps', avatar: 'BK' },
-      content: {
-        title: 'Just signed up for FIFA tournament in Westlands',
-        description: 'Found this awesome FIFA 24 1v1 bracket tournament. Prize pool KES 50K! Ready to compete 🎮',
-        eventTitle: 'FIFA 24 Weekend Cup',
-        eventTime: 'Saturday 2:00 PM EAT',
-        attendees: 32,
-        image: 'https://images.unsplash.com/photo-1758410473607-e78a23fd6e57?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxlc3BvcnRzJTIwY29tcGV0aXRpb24lMjBzY3JlZW58ZW58MXx8fHwxNzY1MzU4NzQ5fDA&ixlib=rb-4.1.0&q=80&w=1080'
-      },
-      stats: { likes: 67, comments: 19, shares: 12 },
-      timeAgo: '2h'
-    },
-    {
-      id: 2,
-      type: 'tournament_joined',
-      user: { name: 'Faith Wambui', handle: '@faith_valorant', avatar: 'FW' },
-      content: {
-        title: 'Just registered for Valorant League Finals',
-        description: 'So hyped! Finally made it to the finals with my squad. Time to show what we\'re made of! 🔥',
-        eventTitle: 'Valorant League Finals',
-        eventTime: 'Friday 8:00 PM EAT',
-        attendees: 80,
-        image: 'https://images.unsplash.com/photo-1758524944460-98b67346a1e4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjB0b3VybmFtZW50JTIwcGxheWVyc3xlbnwxfHx8fDE3NjUzNTg3NDl8MA&ixlib=rb-4.1.0&q=80&w=1080'
-      },
-      stats: { likes: 124, comments: 34, shares: 18 },
-      timeAgo: '4h'
-    },
-    {
-      id: 3,
-      type: 'tournament_live',
-      user: { name: 'Kevin Omondi', handle: '@kev_cod_ke', avatar: 'KO' },
-      content: {
-        title: 'Watching COD Warzone tournament live at Karen Arena!',
-        description: 'Epic squad battles going down right now. The competition is insane! ⚡',
-        eventTitle: 'COD Warzone Championship',
-        eventTime: 'Live Now',
-        attendees: 48,
-        image: 'https://images.unsplash.com/photo-1733945761558-e24d0620e1c4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxnYW1pbmclMjBoZWFkc2V0JTIwc2V0dXB8ZW58MXx8fHwxNzY1MzU4NzUwfDA&ixlib=rb-4.1.0&q=80&w=1080'
-      },
-      stats: { likes: 156, comments: 42, shares: 29 },
-      timeAgo: 'Live',
-      isLive: true
-    },
-    {
-      id: 4,
-      type: 'tournament_recap',
-      user: { name: 'James Mwangi', handle: '@james_csgo', avatar: 'JM' },
-      content: {
-        title: 'What a final at Cyber Arena Kileleshwa!',
-        description: 'Participated in the CS:GO finals tonight. Intense matches! Congrats to all teams who competed! 🏆',
-        eventTitle: 'CS:GO Championship Finals',
-        eventTime: 'Last night',
-        attendees: 96,
-        image: 'https://images.unsplash.com/photo-1677694690511-2e0646619c91?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHx2aWRlbyUyMGdhbWUlMjBjb25zb2xlfGVufDF8fHx8MTc2NTM1ODc1MHww&ixlib=rb-4.1.0&q=80&w=1080'
-      },
-      stats: { likes: 243, comments: 67, shares: 41 },
-      timeAgo: '1d'
-    }
-  ];
+  const [activeGame, setActiveGame] = useState('');
+  const [games, setGames] = useState<string[]>([]);
+  const [leaderboardData, setLeaderboardData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Default games as fallback
+  const defaultGames = ['FIFA', 'Valorant', 'COD', 'CS:GO', 'Apex Legends'];
+
+  // Fetch top games on component mount
+  useEffect(() => {
+    const fetchTopGames = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/top-games`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch top games');
+        }
+
+        const data = await response.json();
+        const topGames = data.games || [];
+        
+        console.log('Fetched top games:', topGames);
+        
+        // Use dynamic games if available, otherwise fall back to default
+        const gamesToUse = topGames.length > 0 ? topGames : defaultGames;
+        setGames(gamesToUse);
+        
+        // Set the first game as active if available
+        if (gamesToUse.length > 0 && !activeGame) {
+          setActiveGame(gamesToUse[0]);
+        }
+      } catch (err: any) {
+        console.error('Error fetching top games:', err);
+        // Fall back to default games on error
+        setGames(defaultGames);
+        if (!activeGame) {
+          setActiveGame(defaultGames[0]);
+        }
+      }
+    };
+
+    fetchTopGames();
+  }, []);
+
+  // Fetch leaderboard data when game changes
+  useEffect(() => {
+    if (!activeGame) return;
+    
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/leaderboard?game=${encodeURIComponent(activeGame)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+            },
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch leaderboard data');
+        }
+
+        const data = await response.json();
+        setLeaderboardData(data.leaderboard || []);
+      } catch (err: any) {
+        console.error('Error fetching leaderboard:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [activeGame]);
 
   return (
     <section className="py-16">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <div>
             <h2 className="text-4xl font-black mb-2">
-              NAIROBI <span className="gradient-text">GAMING FEED</span>
+              TOP <span className="text-primary">PLAYERS</span>
             </h2>
-            <p className="text-muted-foreground">See what's happening in Nairobi's esports community</p>
+            <p className="text-muted-foreground">Nairobi's best competitive gamers</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-2">
-              <div className="w-2 h-2 bg-primary rounded-full animate-pulse"></div>
-              Live from 254
-            </Badge>
-          </div>
+          <Badge variant="outline" className="gap-2 w-fit">
+            <Trophy className="w-4 h-4 text-primary" />
+            Updated Daily
+          </Badge>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {feedItems.map((item, index) => (
-            <Card 
-              key={item.id} 
-              className={`overflow-hidden hover:shadow-2xl transition-all duration-500 ${
-                item.isLive ? 'ring-2 ring-primary/20 glow' : ''
-              }`}
-              style={{ animationDelay: `${index * 0.1}s` }}
-            >
+        {/* No Games State */}
+        {games.length === 0 && !loading && (
+          <Card className="overflow-hidden">
+            <CardContent className="p-12 text-center">
+              <Trophy className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                No tournament games with registered players yet. Register for a tournament to get started!
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Game Tabs */}
+        {games.length > 0 && (
+          <>
+            <div className="flex flex-wrap gap-2 mb-6">
+              {games.map((game) => (
+                <button
+                  key={game}
+                  onClick={() => setActiveGame(game)}
+                  className={`px-6 py-3 rounded-full font-bold transition-all ${
+                    activeGame === game
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                  }`}
+                >
+                  {game}
+                </button>
+              ))}
+            </div>
+
+            {/* Leaderboard */}
+            <Card className="overflow-hidden">
               <CardContent className="p-0">
                 {/* Header */}
-                <div className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="ring-2 ring-primary/20">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white font-bold">
-                        {item.user.avatar}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-bold">{item.user.name}</h4>
-                        {item.isLive && (
-                          <Badge variant="destructive" className="text-xs px-2 py-0">
-                            LIVE
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{item.user.handle} • {item.timeAgo}</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </Button>
+                <div className="grid grid-cols-12 gap-4 p-4 bg-muted/50 border-b border-border font-bold text-sm">
+                  <div className="col-span-1 text-center">RANK</div>
+                  <div className="col-span-5 md:col-span-6">PLAYER</div>
+                  <div className="col-span-2 text-center hidden md:block">WINS</div>
+                  <div className="col-span-3 md:col-span-2 text-center">POINTS</div>
+                  <div className="col-span-1 text-center"></div>
                 </div>
 
-                {/* Content */}
-                <div className="px-4 pb-4">
-                  <h5 className="font-bold mb-2">{item.content.title}</h5>
-                  <p className="text-muted-foreground mb-4">{item.content.description}</p>
-                </div>
+                {/* Loading State */}
+                {loading && (
+                  <div className="p-12 text-center text-muted-foreground">
+                    Loading leaderboard...
+                  </div>
+                )}
 
-                {/* Event Card */}
-                <div className="mx-4 mb-4 bg-muted/50 rounded-lg overflow-hidden">
-                  <div className="relative h-32">
-                    <ImageWithFallback
-                      src={item.content.image}
-                      alt={item.content.eventTitle}
-                      className="w-full h-full object-cover"
-                    />
-                    <div className="absolute inset-0 bg-black/40"></div>
-                    <div className="absolute bottom-2 left-2 right-2">
-                      <h6 className="font-bold text-white text-sm">{item.content.eventTitle}</h6>
-                    </div>
+                {/* Error State */}
+                {error && (
+                  <div className="p-12 text-center text-destructive">
+                    Failed to load leaderboard. Please try again later.
                   </div>
-                  <div className="p-3">
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Clock className="w-4 h-4" />
-                        <span>{item.content.eventTime}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        <span>{item.content.attendees} {item.isLive ? 'playing' : 'registered'}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                )}
 
-                {/* Actions */}
-                <div className="p-4 flex items-center justify-between border-t border-border">
-                  <div className="flex items-center gap-6">
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-red-500">
-                      <Heart className="w-4 h-4" />
-                      {item.stats.likes}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-primary">
-                      <MessageCircle className="w-4 h-4" />
-                      {item.stats.comments}
-                    </Button>
-                    <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-accent">
-                      <Share2 className="w-4 h-4" />
-                      {item.stats.shares}
-                    </Button>
+                {/* Empty State */}
+                {!loading && !error && leaderboardData.length === 0 && (
+                  <div className="p-12 text-center text-muted-foreground">
+                    No players with points yet for {activeGame}. Be the first!
                   </div>
-                  
-                  {item.isLive && (
-                    <Button size="sm" className="bg-primary text-primary-foreground">
-                      Join Live
-                    </Button>
-                  )}
-                </div>
+                )}
+
+                {/* Leaderboard Rows */}
+                {!loading && !error && leaderboardData.length > 0 && (
+                  <div className="divide-y divide-border">
+                    {leaderboardData.map((player) => (
+                      <div
+                        key={player.rank}
+                        className={`grid grid-cols-12 gap-4 p-4 hover:bg-muted/30 transition-colors ${
+                          player.rank <= 3 ? 'bg-muted/20' : ''
+                        }`}
+                      >
+                        {/* Rank */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          {player.rank === 1 && (
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                              <Trophy className="w-4 h-4 text-primary-foreground" />
+                            </div>
+                          )}
+                          {player.rank === 2 && (
+                            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                              <Award className="w-4 h-4 text-foreground" />
+                            </div>
+                          )}
+                          {player.rank === 3 && (
+                            <div className="w-8 h-8 rounded-full bg-secondary/20 flex items-center justify-center">
+                              <Award className="w-4 h-4 text-secondary" />
+                            </div>
+                          )}
+                          {player.rank > 3 && (
+                            <span className="font-bold text-muted-foreground">#{player.rank}</span>
+                          )}
+                        </div>
+
+                        {/* Player */}
+                        <div className="col-span-5 md:col-span-6 flex items-center gap-3">
+                          <Avatar className="ring-2 ring-primary/20">
+                            <AvatarFallback className="bg-primary/10 text-primary font-bold">
+                              {player.player.substring(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="font-bold">{player.player}</span>
+                        </div>
+
+                        {/* Wins */}
+                        <div className="col-span-2 hidden md:flex items-center justify-center text-muted-foreground">
+                          {player.wins}
+                        </div>
+
+                        {/* Points */}
+                        <div className="col-span-3 md:col-span-2 flex items-center justify-center">
+                          <span className="font-bold text-primary">{player.points.toLocaleString()}</span>
+                        </div>
+
+                        {/* Trend */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          {player.trend === 'up' && <TrendingUp className="w-4 h-4 text-primary" />}
+                          {player.trend === 'down' && <TrendingUp className="w-4 h-4 text-secondary rotate-180" />}
+                          {player.trend === 'same' && <div className="w-2 h-2 rounded-full bg-muted-foreground"></div>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
-          ))}
-        </div>
 
-        <div className="text-center mt-8">
-          <Button variant="outline" size="lg" className="gradient-border">
-            Load More Gaming Updates
-          </Button>
-        </div>
+            {!loading && !error && leaderboardData.length > 0 && (
+              <div className="text-center mt-8">
+                <Button variant="outline" size="lg" className="rounded-full">
+                  View Full Rankings
+                </Button>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </section>
   );

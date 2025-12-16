@@ -18,6 +18,7 @@ export function TournamentDetailsModal({ tournament, onClose, user, accessToken,
   const [error, setError] = useState('');
   const [registrationCount, setRegistrationCount] = useState(0);
   const [isAtLimit, setIsAtLimit] = useState(false);
+  const [gamertag, setGamertag] = useState('');
 
   useEffect(() => {
     // Check if user is already registered and get registration history
@@ -47,6 +48,13 @@ export function TournamentDetailsModal({ tournament, onClose, user, accessToken,
       return;
     }
 
+    // Check if gamertag is required and provided
+    const isCODMobile = tournament.game?.toLowerCase().includes('cod') && tournament.game?.toLowerCase().includes('mobile');
+    if (isCODMobile && !gamertag.trim()) {
+      setError('Gamertag is required for COD: Mobile tournaments');
+      return;
+    }
+
     setIsRegistering(true);
     setError('');
 
@@ -62,6 +70,7 @@ export function TournamentDetailsModal({ tournament, onClose, user, accessToken,
           body: JSON.stringify({
             tournamentId: tournament.id,
             tournamentTitle: tournament.title,
+            gamertag: gamertag.trim() || undefined,
           }),
         }
       );
@@ -291,6 +300,25 @@ export function TournamentDetailsModal({ tournament, onClose, user, accessToken,
                 <p className="text-sm text-muted-foreground">
                   Registration attempts: <span className="text-primary font-bold">{registrationCount}/3</span>
                   {isAtLimit && <span className="text-red-500 ml-2">(Limit reached)</span>}
+                </p>
+              </div>
+            )}
+
+            {/* Gamertag Input for COD: Mobile */}
+            {user && !isRegistered && tournament.game?.toLowerCase().includes('cod') && tournament.game?.toLowerCase().includes('mobile') && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium">
+                  COD: Mobile Gamertag <span className="text-primary">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={gamertag}
+                  onChange={(e) => setGamertag(e.target.value)}
+                  placeholder="Enter your in-game gamertag"
+                  className="w-full px-4 py-3 bg-muted/50 border border-primary/20 rounded-lg text-white placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This will be used to identify you in the tournament
                 </p>
               </div>
             )}

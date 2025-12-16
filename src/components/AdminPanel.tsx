@@ -18,7 +18,7 @@ interface AdminPanelProps {
 }
 
 export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'users' | 'tournaments' | 'config'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'tournaments' | 'config' | 'leaderboard'>('users');
   const [users, setUsers] = useState<any[]>([]);
   const [tournaments, setTournaments] = useState<any[]>([]);
   const [config, setConfig] = useState<any>(null);
@@ -502,6 +502,14 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
           >
             <Settings className="w-4 h-4" />
             Configuration
+          </Button>
+          <Button
+            variant={activeTab === 'leaderboard' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('leaderboard')}
+            className="gap-2"
+          >
+            <Trophy className="w-4 h-4" />
+            Leaderboard
           </Button>
         </div>
 
@@ -1056,6 +1064,7 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                             <th className="p-4 font-medium">Email</th>
                             <th className="p-4 font-medium">Location</th>
                             <th className="p-4 font-medium">Favorite Game</th>
+                            <th className="p-4 font-medium">Gamertag</th>
                             <th className="p-4 font-medium">Registered</th>
                             <th className="p-4 font-medium">Actions</th>
                           </tr>
@@ -1067,6 +1076,15 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
                               <td className="p-4 text-sm text-muted-foreground">{participant.userEmail}</td>
                               <td className="p-4 text-sm">{participant.location || '-'}</td>
                               <td className="p-4 text-sm">{participant.favoriteGame || '-'}</td>
+                              <td className="p-4 text-sm">
+                                {participant.gamertag ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded-md border border-primary/20">
+                                    {participant.gamertag}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground">-</span>
+                                )}
+                              </td>
                               <td className="p-4 text-sm">
                                 {participant.registeredAt ? new Date(participant.registeredAt).toLocaleDateString() : '-'}
                               </td>
@@ -1194,7 +1212,263 @@ export function AdminPanel({ accessToken, onNavigate }: AdminPanelProps) {
             </div>
           </div>
         )}
+
+        {activeTab === 'leaderboard' && (
+          <LeaderboardManagement accessToken={accessToken} />
+        )}
       </div>
+    </div>
+  );
+}
+
+// Leaderboard Management Component
+function LeaderboardManagement({ accessToken }: { accessToken: string }) {
+  const [selectedGame, setSelectedGame] = useState('');
+  const [games, setGames] = useState<string[]>([]);
+  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [editPoints, setEditPoints] = useState('');
+  const [editWins, setEditWins] = useState('');
+
+  // Fetch available games
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/top-games`,
+          {
+            headers: {
+              'Authorization': `Bearer ${publicAnonKey}`,
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          const gameNames = data.games.map((g: any) => g.game);
+          setGames(gameNames);
+          if (gameNames.length > 0) {
+            setSelectedGame(gameNames[0]);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching games:', error);
+      }
+    };
+
+    fetchGames();
+  }, []);
+
+  // Fetch leaderboard for selected game
+  useEffect(() => {
+    if (!selectedGame) return;
+
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/leaderboard/${encodeURIComponent(selectedGame)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+        
+        if (response.ok) {
+          const data = await response.json();
+          setLeaderboard(data.leaderboard || []);
+        }
+      } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [selectedGame, accessToken]);
+
+  const handleEdit = (userId: string, currentPoints: number, currentWins: number) => {
+    setEditingUser(userId);
+    setEditPoints(currentPoints.toString());
+    setEditWins(currentWins.toString());
+  };
+
+  const handleSave = async (userId: string) => {
+    try {
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/update-player-stats`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            userId,
+            game: selectedGame,
+            points: parseInt(editPoints) || 0,
+            wins: parseInt(editWins) || 0,
+          }),
+        }
+      );
+
+      if (response.ok) {
+        // Refresh leaderboard
+        const refreshResponse = await fetch(
+          `https://${projectId}.supabase.co/functions/v1/make-server-8711c492/admin/leaderboard/${encodeURIComponent(selectedGame)}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+            },
+          }
+        );
+        
+        if (refreshResponse.ok) {
+          const data = await refreshResponse.json();
+          setLeaderboard(data.leaderboard || []);
+        }
+        setEditingUser(null);
+      }
+    } catch (error) {
+      console.error('Error updating player stats:', error);
+    }
+  };
+
+  const handleCancel = () => {
+    setEditingUser(null);
+    setEditPoints('');
+    setEditWins('');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Game Selector */}
+      <div className="flex items-center gap-4">
+        <label className="text-sm font-medium">Select Game:</label>
+        <Select value={selectedGame} onValueChange={setSelectedGame}>
+          <SelectTrigger className="w-64">
+            <SelectValue placeholder="Choose a game" />
+          </SelectTrigger>
+          <SelectContent>
+            {games.map((game) => (
+              <SelectItem key={game} value={game}>
+                {game}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Leaderboard Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">
+            {selectedGame ? `${selectedGame} Leaderboard` : 'Leaderboard'}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            View and manage player rankings and statistics
+          </p>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="border-b border-border">
+                <tr className="text-left text-sm text-muted-foreground">
+                  <th className="p-4 font-medium">Rank</th>
+                  <th className="p-4 font-medium">Player</th>
+                  <th className="p-4 font-medium">Email</th>
+                  <th className="p-4 font-medium">Wins</th>
+                  <th className="p-4 font-medium">Points</th>
+                  <th className="p-4 font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      Loading leaderboard...
+                    </td>
+                  </tr>
+                ) : leaderboard.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                      No players on leaderboard yet
+                    </td>
+                  </tr>
+                ) : (
+                  leaderboard.map((player, index) => (
+                    <tr key={player.userId} className="border-b border-border hover:bg-muted/30 transition-colors">
+                      <td className="p-4 text-white font-medium">#{index + 1}</td>
+                      <td className="p-4 text-white font-medium">{player.player}</td>
+                      <td className="p-4 text-sm text-muted-foreground">{player.email}</td>
+                      <td className="p-4">
+                        {editingUser === player.userId ? (
+                          <Input
+                            type="number"
+                            value={editWins}
+                            onChange={(e) => setEditWins(e.target.value)}
+                            className="w-20"
+                          />
+                        ) : (
+                          <span className="text-white">{player.wins}</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {editingUser === player.userId ? (
+                          <Input
+                            type="number"
+                            value={editPoints}
+                            onChange={(e) => setEditPoints(e.target.value)}
+                            className="w-20"
+                          />
+                        ) : (
+                          <span className="text-white font-medium">{player.points}</span>
+                        )}
+                      </td>
+                      <td className="p-4">
+                        {editingUser === player.userId ? (
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSave(player.userId)}
+                              className="gap-1"
+                            >
+                              <Save className="w-3 h-3" />
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancel}
+                              className="gap-1"
+                            >
+                              <X className="w-3 h-3" />
+                              Cancel
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEdit(player.userId, player.points, player.wins)}
+                            className="gap-1"
+                          >
+                            <Edit className="w-3 h-3" />
+                            Edit
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

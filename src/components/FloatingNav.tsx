@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X, Shield } from 'lucide-react';
+import { Search, Calendar, Users, MapPin, Gamepad2, Settings, Trophy, LogOut, UserCircle, Menu, X, Shield, BookOpen } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import logoImage from 'figma:asset/e1f091e357b15fe7119ceb204dc5d0faceb28dc9.png';
+import logoImage from 'figma:asset/333c6873ab41fdcf124ccfc83ff16d4ce416fe2c.png';
 
 interface FloatingNavProps {
   onNavigate: (page: string) => void;
@@ -32,13 +32,11 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               onClick={() => handleNavigate('home')}
               className="hover:opacity-80 transition-opacity"
             >
-              <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-sm overflow-hidden">
-                <img 
-                  src={logoImage} 
-                  alt="ESPORTS-KE" 
-                  className="w-full h-full object-contain" 
-                />
-              </div>
+              <img 
+                src={logoImage} 
+                alt="ESPORTS-KE" 
+                className="h-8 sm:h-10 w-auto object-contain" 
+              />
             </button>
 
             {/* Center navigation - Desktop */}
@@ -59,9 +57,10 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
               </button>
               <button 
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
+                onClick={() => handleNavigate('blog')}
               >
-                <MapPin className="w-4 h-4" />
-                Gaming Lounges
+                <BookOpen className="w-4 h-4" />
+                Blog
               </button>
               <button 
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white hover:bg-primary/10 transition-colors"
@@ -165,9 +164,10 @@ export function FloatingNav({ onNavigate, currentPage, user, onOpenAuth, onSignO
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"
+                  onClick={() => handleNavigate('blog')}
                 >
-                  <MapPin className="w-5 h-5 text-primary" />
-                  <span className="font-black">Gaming Lounges</span>
+                  <BookOpen className="w-5 h-5 text-primary" />
+                  <span className="font-black">Blog</span>
                 </button>
                 <button
                   className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-muted/50 transition-colors"

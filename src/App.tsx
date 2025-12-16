@@ -5,6 +5,7 @@ import { TournamentsPage } from './pages/TournamentsPage';
 import { ScrimsPage } from './pages/ScrimsPage';
 import { ProfilePage } from './pages/ProfilePage';
 import { AdminPanel } from './components/AdminPanel';
+import { BlogPage } from './components/BlogPage';
 import { AuthModal } from './components/AuthModal';
 import { getSupabaseClient } from './utils/supabase/client';
 import { projectId, publicAnonKey } from './utils/supabase/info';
@@ -203,6 +204,9 @@ export default function App() {
           accessToken={accessToken}
           onNavigate={handleNavigate}
         />
+      )}
+      {currentPage === 'blog' && (
+        <BlogPage />
       )}
       
       <AuthModal
